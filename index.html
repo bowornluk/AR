@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Quiz System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    
+    <style>
+        body { font-family: 'Prompt', sans-serif; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; overflow: hidden; }
+        .glass { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+        #videoElement { display: none; }
+        #canvasOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; transform: scaleX(-1); }
+        #ar-cursor { position: fixed; width: 30px; height: 30px; border-radius: 50%; background-color: #3b82f6; opacity: 0.8; pointer-events: none; z-index: 50; transform: translate(-50%, -50%); transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .choice-btn { transition: transform 0.2s, background-color 0.2s; cursor: pointer; }
+        .choice-btn:hover { transform: scale(1.02); background: rgba(255, 255, 255, 0.3); }
+        .hide { display: none !important; }
+    </style>
+</head>
+<body class="h-screen w-screen relative">
+    
+    <video id="videoElement" autoplay playsinline></video>
+    <canvas id="canvasOverlay"></canvas>
+    <div id="ar-cursor"><span id="cursor-icon"></span></div>
+    <div id="ai-status" class="fixed top-4 right-4 bg-yellow-500 text-black px-4 py-2 rounded-full font-bold z-20 text-sm hide">กำลังหามือของคุณ...</div>
+
+    <div class="relative z-20 h-full flex flex-col items-center justify-center p-6">
+        
+        <div id="screen-start" class="glass rounded-2xl p-10 text-center w-full max-w-md">
+            <h1 class="text-3xl font-bold mb-4">ระบบข้อสอบ AR</h1>
+            <h2 class="text-xl mb-6">วิชา การวิเคราะห์ข้อมูล ปวส.</h2>
+            <input type="text" id="studentName" placeholder="พิมพ์ชื่อ-สกุล ของคุณ" class="w-full p-3 rounded-lg text-black mb-4 outline-none">
+            <button onclick="goToInstructions()" class="bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold text-lg shadow-lg">เข้าสู่ระบบ (Start)</button>
+            <button onclick="showTeacherLogin()" class="mt-4 text-sm text-gray-300 underline">โหมดสำหรับครูผู้สอน</button>
+        </div>
+
+        <div id="screen-instructions" class="glass rounded-2xl p-8 text-center w-full max-w-lg hide">
+            <h2 class="text-2xl font-bold mb-4 text-yellow-300">วิธีใช้งานระบบ AR</h2>
+            <ul class="text-left list-disc pl-5 mb-6 space-y-2">
+                <li>ใช้กล้อง WebCam ในการเล่น</li>
+                <li>ใช้ <b>"นิ้วชี้"</b> เป็นเคอร์เซอร์เล็งไปที่คำตอบ</li>
+                <li><b>"จีบนิ้ว"</b> (นิ้วโป้งแตะนิ้วชี้) เพื่อเสมือนการกดปุ่มคลิกตอบ</li>
+                <li>หรือใช้ <b>เมาส์/ทัชสกรีน</b> คลิกที่ปุ่มคำตอบได้ทันที</li>
+            </ul>
+            <button onclick="startGame()" class="bg-green-500 hover:bg-green-600 w-full py-3 rounded-lg font-bold text-lg shadow-lg">เริ่มทำแบบทดสอบ!</button>
+        </div>
+
+        <div id="screen-game" class="w-full max-w-4xl h-full flex flex-col hide">
+            <div class="flex justify-between items-center mb-4 bg-black/40 p-4 rounded-xl flex-wrap gap-2">
+                <div class="text-xl font-bold text-yellow-400">เวลา: <span id="timerDisplay">00:00</span></div>
+                <div class="text-xl font-bold">ข้อที่: <span id="qCurrent">1</span>/<span id="qTotal">10</span></div>
+                <div class="text-xl font-bold text-green-400">คะแนน: <span id="scoreDisplay">0</span></div>
+            </div>
+            
+            <div class="glass flex-grow rounded-2xl p-8 flex flex-col">
+                <div id="questionText" class="text-3xl font-bold text-center mb-8 h-24 flex items-center justify-center">กำลังโหลดคำถาม...</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow">
+                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold" onclick="checkAnswer(1)" id="c1"></div>
+                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold" onclick="checkAnswer(2)" id="c2"></div>
+                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold" onclick="checkAnswer(3)" id="c3"></div>
+                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold" onclick="checkAnswer(4)" id="c4"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-result" class="glass rounded-2xl p-10 text-center w-full max-w-md hide">
+            <h1 class="text-4xl font-bold mb-4">จบการทดสอบ!</h1>
+            <p class="text-2xl mb-2">คะแนนของคุณ</p>
+            <div class="text-6xl font-bold text-yellow-400 mb-6" id="finalScore">0/0</div>
+            <div id="finalStatus" class="text-3xl font-bold mb-6"></div>
+            <p class="text-gray-200" id="saveStatus">กำลังบันทึกข้อมูลลงฐานข้อมูล...</p>
+            <button onclick="location.reload()" class="mt-6 bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold">กลับหน้าหลัก</button>
+        </div>
+
+        <div id="screen-teacher" class="glass rounded-2xl p-8 w-full max-w-4xl h-[90vh] flex flex-col hide">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-2xl font-bold">โหมดจัดการสำหรับครู</h1>
+                <button onclick="location.reload()" class="bg-red-500 px-4 py-2 rounded">ออก</button>
+            </div>
+            <div class="overflow-y-auto flex-grow bg-white/10 rounded-lg p-4">
+                <h2 class="text-xl mb-2 text-yellow-300">ตารางคะแนนล่าสุด (เกิน 50% = ผ่าน)</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm mb-6 min-w-[500px]">
+                        <thead class="bg-black/30"><tr><th class="p-2">วันที่</th><th class="p-2">ชื่อ</th><th class="p-2">คะแนน</th><th class="p-2">สถานะ</th></tr></thead>
+                        <tbody id="scoreTableBody"></tbody>
+                    </table>
+                </div>
+                <p class="text-sm text-gray-300">*การเพิ่ม/ลบ/แก้ไขโจทย์ กรุณาทำผ่าน Google Sheet โดยตรง</p>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // ✅ นำ URL Web App ที่ได้จาก Google Apps Script มาใส่ที่นี่
+    const GAS_URL = 'ใส่_URL_WEBAPP_ตรงนี้';
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(type) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        if(type === 'correct'){ osc.frequency.value = 800; osc.type = 'sine'; } 
+        else { osc.frequency.value = 200; osc.type = 'sawtooth'; }
+        osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5); osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+    let quizData = [];
+    let currentQIndex = 0, score = 0, totalPoints = 0, timerInterval, timeLeft = 0, studentNameStr = '';
+    
+    const switchScreen = (id) => {
+        ['screen-start', 'screen-instructions', 'screen-game', 'screen-result', 'screen-teacher'].forEach(s => document.getElementById(s).classList.add('hide'));
+        document.getElementById(id).classList.remove('hide');
+    }
+
+    // --- ฟังก์ชัน API Call แทน google.script.run (รองรับ CORS) ---
+    async function apiCall(action, data = {}) {
+        if (!GAS_URL || GAS_URL.includes('ใส่_URL')) {
+            alert('กรุณาตั้งค่า GAS_URL ในโค้ดก่อนใช้งาน');
+            return { success: false };
+        }
+        try {
+            const response = await fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: action, data: data }),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' } // ใช้ text/plain เลี่ยงปัญหา CORS Preflight
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้');
+            return { success: false };
+        }
+    }
+
+    async function goToInstructions() {
+        studentNameStr = document.getElementById('studentName').value;
+        if(!studentNameStr) return alert("กรุณาใส่ชื่อ-สกุล");
+        
+        document.getElementById('ai-status').classList.remove('hide');
+        document.getElementById('ai-status').innerText = "กำลังเชื่อมต่อ Google Sheet...";
+        
+        const res = await apiCall('getQuizData');
+        if (res.success) {
+            quizData = res.data.questions.sort(() => Math.random() - 0.5);
+            timeLeft = res.data.timer * 60;
+            document.getElementById('ai-status').classList.add('hide');
+            switchScreen('screen-instructions');
+            initAR(); 
+        }
+    }
+
+    function startGame() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        switchScreen('screen-game');
+        document.getElementById('qTotal').innerText = quizData.length;
+        loadQuestion();
+        
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            let m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            let s = (timeLeft % 60).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${m}:${s}`;
+            if(timeLeft <= 0) endGame();
+        }, 1000);
+    }
+
+    let currentCorrectAns = 0;
+    let currentQPoints = 1;
+    function loadQuestion() {
+        if(currentQIndex >= quizData.length) return endGame();
+        
+        let q = quizData[currentQIndex];
+        document.getElementById('qCurrent').innerText = currentQIndex + 1;
+        document.getElementById('questionText').innerText = q.q;
+        document.getElementById('c1').innerText = q.c1;
+        document.getElementById('c2').innerText = q.c2;
+        document.getElementById('c3').innerText = q.c3;
+        document.getElementById('c4').innerText = q.c4;
+        currentCorrectAns = q.ans;
+        currentQPoints = q.points;
+    }
+
+    let isProcessingClick = false;
+    function checkAnswer(choiceNum) {
+        if(isProcessingClick) return;
+        isProcessingClick = true;
+        
+        const cursor = document.getElementById('ar-cursor');
+        const icon = document.getElementById('cursor-icon');
+        
+        totalPoints += currentQPoints;
+        if(choiceNum == currentCorrectAns) {
+            score += currentQPoints;
+            document.getElementById('scoreDisplay').innerText = score;
+            cursor.style.backgroundColor = '#10b981';
+            icon.innerText = '✔️';
+            playBeep('correct');
+        } else {
+            cursor.style.backgroundColor = '#ef4444';
+            icon.innerText = '❌';
+            playBeep('wrong');
+        }
+
+        setTimeout(() => {
+            cursor.style.backgroundColor = '#3b82f6';
+            icon.innerText = '';
+            currentQIndex++;
+            isProcessingClick = false;
+            loadQuestion();
+        }, 1000);
+    }
+
+    async function endGame() {
+        clearInterval(timerInterval);
+        switchScreen('screen-result');
+        document.getElementById('finalScore').innerText = `${score}/${totalPoints}`;
+        
+        let percent = (totalPoints === 0) ? 0 : (score/totalPoints)*100;
+        let statusEl = document.getElementById('finalStatus');
+        
+        if(percent >= 50) { 
+            statusEl.innerText = "สอบผ่าน!"; 
+            statusEl.classList.add('text-green-400'); 
+        } else { 
+            statusEl.innerText = "ไม่ผ่านเกณฑ์"; 
+            statusEl.classList.add('text-red-400'); 
+        }
+        
+        const saveRes = await apiCall('saveScore', { name: studentNameStr, score: score, total: totalPoints });
+        if(saveRes.success) {
+            document.getElementById('saveStatus').innerText = "บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว";
+        } else {
+            document.getElementById('saveStatus').innerText = "เกิดข้อผิดพลาดในการบันทึก";
+            document.getElementById('saveStatus').classList.add('text-red-400');
+        }
+    }
+
+    // --- AR / MediaPipe Setup ---
+    const videoElement = document.getElementById('videoElement');
+    const canvasElement = document.getElementById('canvasOverlay');
+    const canvasCtx = canvasElement.getContext('2d');
+    let isPinched = false;
+
+    function initAR() {
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        hands.onResults(onARResults);
+
+        const camera = new Camera(videoElement, { onFrame: async () => { await hands.send({image: videoElement}); }, width: 1280, height: 720 });
+        camera.start();
+        
+        window.addEventListener('resize', () => {
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+        });
+        canvasElement.width = window.innerWidth;
+        canvasElement.height = window.innerHeight;
+    }
+
+    function onARResults(results) {
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        
+        const aiStatus = document.getElementById('ai-status');
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            aiStatus.classList.add('hide');
+            
+            for (const landmarks of results.multiHandLandmarks) {
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#ffffff', lineWidth: 2});
+                drawLandmarks(canvasCtx, landmarks, {color: '#3b82f6', lineWidth: 1, radius: 2});
+                
+                let indexTip = landmarks[8];
+                let thumbTip = landmarks[4];
+                
+                let cursorX = (1 - indexTip.x) * window.innerWidth;
+                let cursorY = indexTip.y * window.innerHeight;
+
+                const cursorEl = document.getElementById('ar-cursor');
+                cursorEl.style.left = `${cursorX}px`;
+                cursorEl.style.top = `${cursorY}px`;
+
+                let pinchDist = Math.hypot((1 - thumbTip.x) - (1 - indexTip.x), thumbTip.y - indexTip.y);
+                if (pinchDist < 0.05 && !isPinched) {
+                    isPinched = true;
+                    let target = document.elementFromPoint(cursorX, cursorY);
+                    if (target && target.classList.contains('choice-btn')) {
+                        target.click();
+                    }
+                } else if (pinchDist >= 0.06) {
+                    isPinched = false;
+                }
+            }
+        } else {
+            if(!document.getElementById('screen-start').classList.contains('hide') === false && document.getElementById('screen-result').classList.contains('hide')) {
+                aiStatus.classList.remove('hide');
+            }
+        }
+        canvasCtx.restore();
+    }
+
+    async function showTeacherLogin() {
+        let pwd = prompt("กรุณาใส่รหัสผ่านครูผู้สอน:");
+        if(!pwd) return;
+        
+        document.getElementById('ai-status').classList.remove('hide');
+        document.getElementById('ai-status').innerText = "กำลังตรวจสอบสิทธิ์...";
+
+        const authRes = await apiCall('verifyTeacher', { password: pwd });
+        document.getElementById('ai-status').classList.add('hide');
+
+        if(authRes.success && authRes.isValid) {
+            switchScreen('screen-teacher');
+            const dataRes = await apiCall('getScoresData');
+            
+            if(dataRes.success) {
+                let html = '';
+                dataRes.data.forEach(s => {
+                    let dateStr = new Date(s[0]).toLocaleDateString('th-TH');
+                    html += `<tr class="border-b border-white/20"><td class="p-2 whitespace-nowrap">${dateStr}</td><td class="p-2">${s[1]}</td><td class="p-2">${s[2]}/${s[3]} (${s[4]})</td><td class="p-2 ${s[5]==='ผ่าน'?'text-green-400':'text-red-400'}">${s[5]}</td></tr>`;
+                });
+                document.getElementById('scoreTableBody').innerHTML = html;
+            }
+        } else { 
+            alert("รหัสผ่านผิด หรือไม่สามารถเชื่อมต่อได้!"); 
+        }
+    }
+</script>
+</body>
+</html>
