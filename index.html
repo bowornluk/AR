@@ -21,9 +21,6 @@
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 10px; }
-        
-        /* สไตล์ช่องกรอกโหมดครู */
-        .teacher-input { w-full p-2 rounded bg-black/40 text-white outline-none border border-white/20 focus:border-blue-400 }
     </style>
 </head>
 <body class="h-screen w-screen relative">
@@ -134,7 +131,7 @@
 
                     <div class="mt-6 overflow-x-auto rounded border border-white/10">
                         <table class="w-full text-left text-sm min-w-[700px]">
-                            <thead class="bg-black/40"><tr><th class="p-2">คำถาม</th><th class="p-2 text-center w-16">เฉลย</th><th class="p-2 text-center w-20">จัดการ</th></tr></thead>
+                            <thead class="bg-black/40"><tr><th class="p-2">คำถาม</th><th class="p-2 text-center w-16">เฉลย</th><th class="p-2 text-center w-32">จัดการ</th></tr></thead>
                             <tbody id="questionsTableBody" class="divide-y divide-white/10"></tbody>
                         </table>
                     </div>
@@ -188,7 +185,6 @@
         } catch (error) { alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้'); return { success: false }; }
     }
 
-    // --- GAME LOGIC ---
     async function goToInstructions() {
         studentNameStr = document.getElementById('studentName').value;
         if(!document.getElementById('gasUrlInput').value.trim()) return alert("กรุณาระบุ API URL");
@@ -262,7 +258,7 @@
         else { statusEl.innerText = "ไม่ผ่านเกณฑ์"; statusEl.classList.add('text-red-400'); }
         
         const saveRes = await apiCall('saveScore', { name: studentNameStr, score: score, total: totalPoints });
-        if(saveRes.success) { document.getElementById('saveStatus').innerText = "บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว"; document.getElementById('saveStatus').classList.add('text-green-300'); } 
+        if(saveRes.success) { document.getElementById('saveStatus').innerText = "บันทึกข้อมูลสำเร็จ"; document.getElementById('saveStatus').classList.add('text-green-300'); } 
         else { document.getElementById('saveStatus').innerText = "เกิดข้อผิดพลาดในการบันทึก"; document.getElementById('saveStatus').classList.add('text-red-400'); }
     }
 
@@ -292,7 +288,6 @@
                 let indexTip = landmarks[8];
                 let thumbTip = landmarks[4];
                 
-                // แก้ไขปัญหาทิศทางนิ้ว: กลับด้านแกน X ให้สัมพันธ์กับ Mirror Video
                 let cursorX = (1 - indexTip.x) * window.innerWidth; 
                 let cursorY = indexTip.y * window.innerHeight;
 
@@ -328,18 +323,20 @@
     async function loadTeacherData() {
         const res = await apiCall('getTeacherData');
         if (res.success) {
-            // ตั้งเวลา
             document.getElementById('timerSet').value = res.data.timer || 60;
-            
-            // ตารางโจทย์
             let qHtml = '';
             res.data.questions.forEach(q => {
-                qHtml += `<tr class="border-b border-white/5"><td class="p-2 whitespace-normal">${q.q}</td><td class="p-2 text-center font-bold text-green-400">${q.ans}</td>
-                <td class="p-2 text-center"><button onclick="deleteQuestion(${q.rowIndex})" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs">ลบ</button></td></tr>`;
+                qHtml += `<tr class="border-b border-white/5">
+                    <td class="p-2 whitespace-normal">${q.q}</td>
+                    <td class="p-2 text-center font-bold text-green-400">${q.ans}</td>
+                    <td class="p-2 text-center whitespace-nowrap">
+                        <button onclick="editAnswer(${q.rowIndex}, '${q.ans}')" class="bg-yellow-500 hover:bg-yellow-600 px-3 py-1 rounded text-xs text-black font-bold mr-1">แก้ไข</button>
+                        <button onclick="deleteQuestion(${q.rowIndex})" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs font-bold text-white">ลบ</button>
+                    </td>
+                </tr>`;
             });
             document.getElementById('questionsTableBody').innerHTML = qHtml || `<tr><td colspan="3" class="text-center p-3 text-gray-400">ยังไม่มีโจทย์</td></tr>`;
             
-            // ตารางคะแนน
             let sHtml = '';
             res.data.scores.forEach(s => {
                 let dateStr = new Date(s[0]).toLocaleDateString('th-TH');
@@ -366,6 +363,27 @@
             loadTeacherData();
         } else { alert("เกิดข้อผิดพลาด"); }
         document.getElementById('btnAddQ').innerText = "เพิ่มข้อสอบ";
+    }
+
+    // ฟังก์ชันใหม่: เรียกหน้าต่างให้ครูกรอกเฉลยที่ถูกต้อง
+    async function editAnswer(rowIndex, currentAns) {
+        let newAns = prompt("กรุณาระบุหมายเลขตัวเลือกที่ถูกต้อง (พิมพ์เลข 1 ถึง 4 เท่านั้น):", currentAns);
+        
+        if (newAns === null) return; 
+        newAns = newAns.trim();
+        
+        if (!['1', '2', '3', '4'].includes(newAns)) {
+            alert("กรุณากรอกตัวเลข 1, 2, 3 หรือ 4 เท่านั้นครับ");
+            return;
+        }
+        if (newAns == currentAns) return; 
+
+        const res = await apiCall('updateAnswer', { rowIndex: rowIndex, newAns: newAns });
+        if (res.success) {
+            loadTeacherData(); 
+        } else {
+            alert("เกิดข้อผิดพลาดในการแก้ไขเฉลย");
+        }
     }
 
     async function deleteQuestion(rowIndex) {
