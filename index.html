@@ -18,6 +18,10 @@
         .choice-btn { transition: transform 0.2s, background-color 0.2s; cursor: pointer; }
         .choice-btn:hover { transform: scale(1.02); background: rgba(255, 255, 255, 0.3); }
         .hide { display: none !important; }
+        /* สไตล์สำหรับ Scrollbar ในมือถือ */
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 10px; }
     </style>
 </head>
 <body class="h-screen w-screen relative">
@@ -27,14 +31,24 @@
     <div id="ar-cursor"><span id="cursor-icon"></span></div>
     <div id="ai-status" class="fixed top-4 right-4 bg-yellow-500 text-black px-4 py-2 rounded-full font-bold z-20 text-sm hide">กำลังหามือของคุณ...</div>
 
-    <div class="relative z-20 h-full flex flex-col items-center justify-center p-6">
+    <div class="relative z-20 h-full flex flex-col items-center justify-center p-4 sm:p-6">
         
-        <div id="screen-start" class="glass rounded-2xl p-10 text-center w-full max-w-md">
+        <div id="screen-start" class="glass rounded-2xl p-6 sm:p-10 text-center w-full max-w-md">
             <h1 class="text-3xl font-bold mb-4">ระบบข้อสอบ AR</h1>
             <h2 class="text-xl mb-6">วิชา การวิเคราะห์ข้อมูล ปวส.</h2>
-            <input type="text" id="studentName" placeholder="พิมพ์ชื่อ-สกุล ของคุณ" class="w-full p-3 rounded-lg text-black mb-4 outline-none">
-            <button onclick="goToInstructions()" class="bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold text-lg shadow-lg">เข้าสู่ระบบ (Start)</button>
-            <button onclick="showTeacherLogin()" class="mt-4 text-sm text-gray-300 underline">โหมดสำหรับครูผู้สอน</button>
+            
+            <div class="mb-4 text-left">
+                <label for="gasUrlInput" class="text-sm text-yellow-300 mb-1 block font-bold">API URL (Google Apps Script):</label>
+                <input type="text" id="gasUrlInput" placeholder="วาง URL ของ Web App ที่นี่..." class="w-full p-3 rounded-lg text-black outline-none text-sm border-2 border-transparent focus:border-blue-500 transition-colors">
+            </div>
+
+            <div class="mb-6 text-left">
+                <label for="studentName" class="text-sm text-yellow-300 mb-1 block font-bold">ชื่อ-สกุล ผู้เข้าสอบ:</label>
+                <input type="text" id="studentName" placeholder="พิมพ์ชื่อ-สกุล ของคุณ" class="w-full p-3 rounded-lg text-black outline-none text-sm border-2 border-transparent focus:border-blue-500 transition-colors">
+            </div>
+
+            <button onclick="goToInstructions()" class="bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold text-lg shadow-lg transition-transform transform active:scale-95">เข้าสู่ระบบ (Start)</button>
+            <button onclick="showTeacherLogin()" class="mt-4 text-sm text-gray-200 hover:text-white underline">โหมดสำหรับครูผู้สอน</button>
         </div>
 
         <div id="screen-instructions" class="glass rounded-2xl p-8 text-center w-full max-w-lg hide">
@@ -55,8 +69,8 @@
                 <div class="text-xl font-bold text-green-400">คะแนน: <span id="scoreDisplay">0</span></div>
             </div>
             
-            <div class="glass flex-grow rounded-2xl p-8 flex flex-col">
-                <div id="questionText" class="text-3xl font-bold text-center mb-8 h-24 flex items-center justify-center">กำลังโหลดคำถาม...</div>
+            <div class="glass flex-grow rounded-2xl p-6 sm:p-8 flex flex-col">
+                <div id="questionText" class="text-2xl sm:text-3xl font-bold text-center mb-8 h-24 flex items-center justify-center">กำลังโหลดคำถาม...</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow">
                     <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold" onclick="checkAnswer(1)" id="c1"></div>
                     <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold" onclick="checkAnswer(2)" id="c2"></div>
@@ -75,28 +89,32 @@
             <button onclick="location.reload()" class="mt-6 bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold">กลับหน้าหลัก</button>
         </div>
 
-        <div id="screen-teacher" class="glass rounded-2xl p-8 w-full max-w-4xl h-[90vh] flex flex-col hide">
-            <div class="flex justify-between items-center mb-4">
-                <h1 class="text-2xl font-bold">โหมดจัดการสำหรับครู</h1>
-                <button onclick="location.reload()" class="bg-red-500 px-4 py-2 rounded">ออก</button>
+        <div id="screen-teacher" class="glass rounded-2xl p-4 sm:p-8 w-full max-w-4xl h-[90vh] flex flex-col hide">
+            <div class="flex justify-between items-center mb-4 gap-2">
+                <h1 class="text-xl sm:text-2xl font-bold">โหมดจัดการสำหรับครู</h1>
+                <button onclick="location.reload()" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm font-bold shadow-lg">ออก</button>
             </div>
-            <div class="overflow-y-auto flex-grow bg-white/10 rounded-lg p-4">
-                <h2 class="text-xl mb-2 text-yellow-300">ตารางคะแนนล่าสุด (เกิน 50% = ผ่าน)</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm mb-6 min-w-[500px]">
-                        <thead class="bg-black/30"><tr><th class="p-2">วันที่</th><th class="p-2">ชื่อ</th><th class="p-2">คะแนน</th><th class="p-2">สถานะ</th></tr></thead>
-                        <tbody id="scoreTableBody"></tbody>
+            <div class="flex-grow bg-white/10 rounded-lg p-4 flex flex-col min-h-0">
+                <h2 class="text-lg sm:text-xl mb-3 text-yellow-300 font-semibold">ตารางคะแนนล่าสุด</h2>
+                <div class="overflow-x-auto overflow-y-auto custom-scrollbar flex-grow bg-black/20 rounded-lg">
+                    <table class="w-full text-left text-sm whitespace-nowrap min-w-[500px]">
+                        <thead class="bg-black/40 sticky top-0">
+                            <tr>
+                                <th class="p-3">วันที่</th>
+                                <th class="p-3">ชื่อ-สกุล</th>
+                                <th class="p-3">คะแนน</th>
+                                <th class="p-3">สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scoreTableBody" class="divide-y divide-white/10"></tbody>
                     </table>
                 </div>
-                <p class="text-sm text-gray-300">*การเพิ่ม/ลบ/แก้ไขโจทย์ กรุณาทำผ่าน Google Sheet โดยตรง</p>
+                <p class="text-xs sm:text-sm text-gray-300 mt-4">*จัดการเพิ่ม/ลบโจทย์ กรุณาทำผ่าน Google Sheet</p>
             </div>
         </div>
     </div>
 
 <script>
-    // ✅ นำ URL Web App ที่ได้จาก Google Apps Script มาใส่ที่นี่
-    const GAS_URL = 'ใส่_URL_WEBAPP_ตรงนี้';
-
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playBeep(type) {
         if(audioCtx.state === 'suspended') audioCtx.resume();
@@ -116,28 +134,45 @@
         document.getElementById(id).classList.remove('hide');
     }
 
-    // --- ฟังก์ชัน API Call แทน google.script.run (รองรับ CORS) ---
+    // โหลด URL เดิมที่เคยบันทึกไว้ในเครื่อง
+    document.addEventListener("DOMContentLoaded", () => {
+        const savedUrl = localStorage.getItem('SAVED_GAS_URL');
+        if(savedUrl) {
+            document.getElementById('gasUrlInput').value = savedUrl;
+        }
+    });
+
+    // API Call Function (Fetch API)
     async function apiCall(action, data = {}) {
-        if (!GAS_URL || GAS_URL.includes('ใส่_URL')) {
-            alert('กรุณาตั้งค่า GAS_URL ในโค้ดก่อนใช้งาน');
+        const gasUrl = document.getElementById('gasUrlInput').value.trim();
+        
+        if (!gasUrl) {
+            alert('กรุณาวาง URL ของ API (Google Apps Script) ก่อนเข้าสู่ระบบ');
             return { success: false };
         }
+
+        // บันทึก URL ลงใน Local Storage
+        localStorage.setItem('SAVED_GAS_URL', gasUrl);
+
         try {
-            const response = await fetch(GAS_URL, {
+            const response = await fetch(gasUrl, {
                 method: 'POST',
                 body: JSON.stringify({ action: action, data: data }),
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' } // ใช้ text/plain เลี่ยงปัญหา CORS Preflight
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
             });
             return await response.json();
         } catch (error) {
             console.error('API Error:', error);
-            alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้');
+            alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบ URL หรือการเชื่อมต่ออินเทอร์เน็ต');
             return { success: false };
         }
     }
 
     async function goToInstructions() {
         studentNameStr = document.getElementById('studentName').value;
+        const gasUrl = document.getElementById('gasUrlInput').value.trim();
+
+        if(!gasUrl) return alert("กรุณาระบุ API URL");
         if(!studentNameStr) return alert("กรุณาใส่ชื่อ-สกุล");
         
         document.getElementById('ai-status').classList.remove('hide');
@@ -150,6 +185,8 @@
             document.getElementById('ai-status').classList.add('hide');
             switchScreen('screen-instructions');
             initAR(); 
+        } else {
+            document.getElementById('ai-status').classList.add('hide');
         }
     }
 
@@ -233,6 +270,7 @@
         const saveRes = await apiCall('saveScore', { name: studentNameStr, score: score, total: totalPoints });
         if(saveRes.success) {
             document.getElementById('saveStatus').innerText = "บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว";
+            document.getElementById('saveStatus').classList.add('text-green-300');
         } else {
             document.getElementById('saveStatus').innerText = "เกิดข้อผิดพลาดในการบันทึก";
             document.getElementById('saveStatus').classList.add('text-red-400');
@@ -276,13 +314,15 @@
                 let indexTip = landmarks[8];
                 let thumbTip = landmarks[4];
                 
-                let cursorX = (1 - indexTip.x) * window.innerWidth;
+                // คำนวณแกน X ให้สัมพันธ์กับทิศทางการเคลื่อนที่ของหน้าจอ
+                let cursorX = indexTip.x * window.innerWidth;
                 let cursorY = indexTip.y * window.innerHeight;
 
                 const cursorEl = document.getElementById('ar-cursor');
                 cursorEl.style.left = `${cursorX}px`;
                 cursorEl.style.top = `${cursorY}px`;
 
+                // การจีบนิ้วเพื่อคลิก
                 let pinchDist = Math.hypot((1 - thumbTip.x) - (1 - indexTip.x), thumbTip.y - indexTip.y);
                 if (pinchDist < 0.05 && !isPinched) {
                     isPinched = true;
@@ -303,6 +343,9 @@
     }
 
     async function showTeacherLogin() {
+        const gasUrl = document.getElementById('gasUrlInput').value.trim();
+        if (!gasUrl) return alert("กรุณาวาง URL ของ API (Google Apps Script) ก่อน");
+
         let pwd = prompt("กรุณาใส่รหัสผ่านครูผู้สอน:");
         if(!pwd) return;
         
@@ -320,7 +363,14 @@
                 let html = '';
                 dataRes.data.forEach(s => {
                     let dateStr = new Date(s[0]).toLocaleDateString('th-TH');
-                    html += `<tr class="border-b border-white/20"><td class="p-2 whitespace-nowrap">${dateStr}</td><td class="p-2">${s[1]}</td><td class="p-2">${s[2]}/${s[3]} (${s[4]})</td><td class="p-2 ${s[5]==='ผ่าน'?'text-green-400':'text-red-400'}">${s[5]}</td></tr>`;
+                    let statusClass = s[5] === 'ผ่าน' ? 'text-green-400 bg-green-900/30' : 'text-red-400 bg-red-900/30';
+                    html += `
+                        <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                            <td class="p-3">${dateStr}</td>
+                            <td class="p-3 font-semibold">${s[1]}</td>
+                            <td class="p-3">${s[2]}/${s[3]} (${s[4]})</td>
+                            <td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ${statusClass}">${s[5]}</span></td>
+                        </tr>`;
                 });
                 document.getElementById('scoreTableBody').innerHTML = html;
             }
