@@ -18,10 +18,12 @@
         .choice-btn { transition: transform 0.2s, background-color 0.2s; cursor: pointer; }
         .choice-btn:hover { transform: scale(1.02); background: rgba(255, 255, 255, 0.3); }
         .hide { display: none !important; }
-        /* สไตล์สำหรับ Scrollbar ในมือถือ */
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 10px; }
+        
+        /* สไตล์ช่องกรอกโหมดครู */
+        .teacher-input { w-full p-2 rounded bg-black/40 text-white outline-none border border-white/20 focus:border-blue-400 }
     </style>
 </head>
 <body class="h-screen w-screen relative">
@@ -38,13 +40,13 @@
             <h2 class="text-xl mb-6">วิชา การวิเคราะห์ข้อมูล ปวส.</h2>
             
             <div class="mb-4 text-left">
-                <label for="gasUrlInput" class="text-sm text-yellow-300 mb-1 block font-bold">API URL (Google Apps Script):</label>
-                <input type="text" id="gasUrlInput" placeholder="วาง URL ของ Web App ที่นี่..." class="w-full p-3 rounded-lg text-black outline-none text-sm border-2 border-transparent focus:border-blue-500 transition-colors">
+                <label class="text-sm text-yellow-300 mb-1 block font-bold">API URL (Google Apps Script):</label>
+                <input type="text" id="gasUrlInput" placeholder="วาง URL ของ Web App ที่นี่..." class="w-full p-3 rounded-lg text-black outline-none text-sm border-2 border-transparent focus:border-blue-500">
             </div>
 
             <div class="mb-6 text-left">
-                <label for="studentName" class="text-sm text-yellow-300 mb-1 block font-bold">ชื่อ-สกุล ผู้เข้าสอบ:</label>
-                <input type="text" id="studentName" placeholder="พิมพ์ชื่อ-สกุล ของคุณ" class="w-full p-3 rounded-lg text-black outline-none text-sm border-2 border-transparent focus:border-blue-500 transition-colors">
+                <label class="text-sm text-yellow-300 mb-1 block font-bold">ชื่อ-สกุล ผู้เข้าสอบ:</label>
+                <input type="text" id="studentName" placeholder="พิมพ์ชื่อ-สกุล ของคุณ" class="w-full p-3 rounded-lg text-black outline-none text-sm border-2 border-transparent focus:border-blue-500">
             </div>
 
             <button onclick="goToInstructions()" class="bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold text-lg shadow-lg transition-transform transform active:scale-95">เข้าสู่ระบบ (Start)</button>
@@ -85,31 +87,69 @@
             <p class="text-2xl mb-2">คะแนนของคุณ</p>
             <div class="text-6xl font-bold text-yellow-400 mb-6" id="finalScore">0/0</div>
             <div id="finalStatus" class="text-3xl font-bold mb-6"></div>
-            <p class="text-gray-200" id="saveStatus">กำลังบันทึกข้อมูลลงฐานข้อมูล...</p>
+            <p class="text-gray-200" id="saveStatus">กำลังบันทึกข้อมูล...</p>
             <button onclick="location.reload()" class="mt-6 bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold">กลับหน้าหลัก</button>
         </div>
 
-        <div id="screen-teacher" class="glass rounded-2xl p-4 sm:p-8 w-full max-w-4xl h-[90vh] flex flex-col hide">
-            <div class="flex justify-between items-center mb-4 gap-2">
+        <div id="screen-teacher" class="glass rounded-2xl p-4 sm:p-8 w-full max-w-5xl h-[95vh] flex flex-col hide">
+            <div class="flex justify-between items-center mb-4 gap-2 border-b border-white/20 pb-4">
                 <h1 class="text-xl sm:text-2xl font-bold">โหมดจัดการสำหรับครู</h1>
-                <button onclick="location.reload()" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-sm font-bold shadow-lg">ออก</button>
+                <button onclick="location.reload()" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded font-bold shadow-lg">ออกระบบ</button>
             </div>
-            <div class="flex-grow bg-white/10 rounded-lg p-4 flex flex-col min-h-0">
-                <h2 class="text-lg sm:text-xl mb-3 text-yellow-300 font-semibold">ตารางคะแนนล่าสุด</h2>
-                <div class="overflow-x-auto overflow-y-auto custom-scrollbar flex-grow bg-black/20 rounded-lg">
-                    <table class="w-full text-left text-sm whitespace-nowrap min-w-[500px]">
-                        <thead class="bg-black/40 sticky top-0">
-                            <tr>
-                                <th class="p-3">วันที่</th>
-                                <th class="p-3">ชื่อ-สกุล</th>
-                                <th class="p-3">คะแนน</th>
-                                <th class="p-3">สถานะ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="scoreTableBody" class="divide-y divide-white/10"></tbody>
-                    </table>
+            
+            <div class="overflow-y-auto custom-scrollbar flex-grow flex flex-col gap-6 pr-2">
+                
+                <div class="bg-black/30 rounded-lg p-4">
+                    <h2 class="text-lg text-yellow-300 font-semibold mb-3">ตั้งค่าเวลาแบบทดสอบ</h2>
+                    <div class="flex items-center gap-3">
+                        <select id="timerSet" class="bg-white text-black p-2 rounded outline-none font-bold">
+                            <option value="60">60 นาที</option>
+                            <option value="90">90 นาที</option>
+                            <option value="120">120 นาที</option>
+                        </select>
+                        <button onclick="saveTimer()" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded font-bold">บันทึกเวลา</button>
+                        <span id="timerStatus" class="text-sm text-green-400"></span>
+                    </div>
                 </div>
-                <p class="text-xs sm:text-sm text-gray-300 mt-4">*จัดการเพิ่ม/ลบโจทย์ กรุณาทำผ่าน Google Sheet</p>
+
+                <div class="bg-black/30 rounded-lg p-4">
+                    <h2 class="text-lg text-yellow-300 font-semibold mb-3">เพิ่มคำถามใหม่</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        <input type="text" id="newQ" placeholder="โจทย์คำถาม" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400 sm:col-span-2">
+                        <input type="text" id="newC1" placeholder="ตัวเลือกที่ 1" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
+                        <input type="text" id="newC2" placeholder="ตัวเลือกที่ 2" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
+                        <input type="text" id="newC3" placeholder="ตัวเลือกที่ 3" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
+                        <input type="text" id="newC4" placeholder="ตัวเลือกที่ 4" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <label class="font-semibold text-sm">เฉลย (ข้อถูก):</label>
+                            <select id="newAns" class="bg-white text-black p-2 rounded outline-none font-bold text-sm">
+                                <option value="1">ตัวเลือก 1</option><option value="2">ตัวเลือก 2</option>
+                                <option value="3">ตัวเลือก 3</option><option value="4">ตัวเลือก 4</option>
+                            </select>
+                        </div>
+                        <button onclick="addQuestion()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded font-bold shadow-lg" id="btnAddQ">เพิ่มข้อสอบ</button>
+                    </div>
+
+                    <div class="mt-6 overflow-x-auto rounded border border-white/10">
+                        <table class="w-full text-left text-sm min-w-[700px]">
+                            <thead class="bg-black/40"><tr><th class="p-2">คำถาม</th><th class="p-2 text-center w-16">เฉลย</th><th class="p-2 text-center w-20">จัดการ</th></tr></thead>
+                            <tbody id="questionsTableBody" class="divide-y divide-white/10"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-black/30 rounded-lg p-4">
+                    <h2 class="text-lg text-yellow-300 font-semibold mb-3">สรุปคะแนนนักเรียน</h2>
+                    <div class="overflow-x-auto rounded border border-white/10">
+                        <table class="w-full text-left text-sm min-w-[500px]">
+                            <thead class="bg-black/40"><tr><th class="p-2">วันที่</th><th class="p-2">ชื่อ-สกุล</th><th class="p-2">คะแนน</th><th class="p-2">สถานะ</th></tr></thead>
+                            <tbody id="scoreTableBody" class="divide-y divide-white/10"></tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -121,8 +161,7 @@
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain); gain.connect(audioCtx.destination);
-        if(type === 'correct'){ osc.frequency.value = 800; osc.type = 'sine'; } 
-        else { osc.frequency.value = 200; osc.type = 'sawtooth'; }
+        if(type === 'correct'){ osc.frequency.value = 800; osc.type = 'sine'; } else { osc.frequency.value = 200; osc.type = 'sawtooth'; }
         osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5); osc.stop(audioCtx.currentTime + 0.5);
     }
 
@@ -134,45 +173,25 @@
         document.getElementById(id).classList.remove('hide');
     }
 
-    // โหลด URL เดิมที่เคยบันทึกไว้ในเครื่อง
     document.addEventListener("DOMContentLoaded", () => {
         const savedUrl = localStorage.getItem('SAVED_GAS_URL');
-        if(savedUrl) {
-            document.getElementById('gasUrlInput').value = savedUrl;
-        }
+        if(savedUrl) document.getElementById('gasUrlInput').value = savedUrl;
     });
 
-    // API Call Function (Fetch API)
     async function apiCall(action, data = {}) {
         const gasUrl = document.getElementById('gasUrlInput').value.trim();
-        
-        if (!gasUrl) {
-            alert('กรุณาวาง URL ของ API (Google Apps Script) ก่อนเข้าสู่ระบบ');
-            return { success: false };
-        }
-
-        // บันทึก URL ลงใน Local Storage
+        if (!gasUrl) { alert('กรุณาวาง URL ของ API (Google Apps Script) ก่อน'); return { success: false }; }
         localStorage.setItem('SAVED_GAS_URL', gasUrl);
-
         try {
-            const response = await fetch(gasUrl, {
-                method: 'POST',
-                body: JSON.stringify({ action: action, data: data }),
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-            });
+            const response = await fetch(gasUrl, { method: 'POST', body: JSON.stringify({ action: action, data: data }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
             return await response.json();
-        } catch (error) {
-            console.error('API Error:', error);
-            alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบ URL หรือการเชื่อมต่ออินเทอร์เน็ต');
-            return { success: false };
-        }
+        } catch (error) { alert('ไม่สามารถเชื่อมต่อฐานข้อมูลได้'); return { success: false }; }
     }
 
+    // --- GAME LOGIC ---
     async function goToInstructions() {
         studentNameStr = document.getElementById('studentName').value;
-        const gasUrl = document.getElementById('gasUrlInput').value.trim();
-
-        if(!gasUrl) return alert("กรุณาระบุ API URL");
+        if(!document.getElementById('gasUrlInput').value.trim()) return alert("กรุณาระบุ API URL");
         if(!studentNameStr) return alert("กรุณาใส่ชื่อ-สกุล");
         
         document.getElementById('ai-status').classList.remove('hide');
@@ -181,12 +200,11 @@
         const res = await apiCall('getQuizData');
         if (res.success) {
             quizData = res.data.questions.sort(() => Math.random() - 0.5);
+            if(quizData.length === 0) { alert("ยังไม่มีโจทย์คำถามในระบบ กรุณาให้ครูเพิ่มโจทย์ก่อน"); document.getElementById('ai-status').classList.add('hide'); return; }
             timeLeft = res.data.timer * 60;
             document.getElementById('ai-status').classList.add('hide');
             switchScreen('screen-instructions');
             initAR(); 
-        } else {
-            document.getElementById('ai-status').classList.add('hide');
         }
     }
 
@@ -205,108 +223,68 @@
         }, 1000);
     }
 
-    let currentCorrectAns = 0;
-    let currentQPoints = 1;
+    let currentCorrectAns = 0, currentQPoints = 1;
     function loadQuestion() {
         if(currentQIndex >= quizData.length) return endGame();
-        
         let q = quizData[currentQIndex];
         document.getElementById('qCurrent').innerText = currentQIndex + 1;
         document.getElementById('questionText').innerText = q.q;
-        document.getElementById('c1').innerText = q.c1;
-        document.getElementById('c2').innerText = q.c2;
-        document.getElementById('c3').innerText = q.c3;
-        document.getElementById('c4').innerText = q.c4;
-        currentCorrectAns = q.ans;
-        currentQPoints = q.points;
+        document.getElementById('c1').innerText = q.c1; document.getElementById('c2').innerText = q.c2;
+        document.getElementById('c3').innerText = q.c3; document.getElementById('c4').innerText = q.c4;
+        currentCorrectAns = q.ans; currentQPoints = q.points;
     }
 
     let isProcessingClick = false;
     function checkAnswer(choiceNum) {
         if(isProcessingClick) return;
         isProcessingClick = true;
-        
-        const cursor = document.getElementById('ar-cursor');
-        const icon = document.getElementById('cursor-icon');
-        
+        const cursor = document.getElementById('ar-cursor'), icon = document.getElementById('cursor-icon');
         totalPoints += currentQPoints;
         if(choiceNum == currentCorrectAns) {
-            score += currentQPoints;
-            document.getElementById('scoreDisplay').innerText = score;
-            cursor.style.backgroundColor = '#10b981';
-            icon.innerText = '✔️';
-            playBeep('correct');
+            score += currentQPoints; document.getElementById('scoreDisplay').innerText = score;
+            cursor.style.backgroundColor = '#10b981'; icon.innerText = '✔️'; playBeep('correct');
         } else {
-            cursor.style.backgroundColor = '#ef4444';
-            icon.innerText = '❌';
-            playBeep('wrong');
+            cursor.style.backgroundColor = '#ef4444'; icon.innerText = '❌'; playBeep('wrong');
         }
-
         setTimeout(() => {
-            cursor.style.backgroundColor = '#3b82f6';
-            icon.innerText = '';
-            currentQIndex++;
-            isProcessingClick = false;
-            loadQuestion();
+            cursor.style.backgroundColor = '#3b82f6'; icon.innerText = '';
+            currentQIndex++; isProcessingClick = false; loadQuestion();
         }, 1000);
     }
 
     async function endGame() {
-        clearInterval(timerInterval);
-        switchScreen('screen-result');
+        clearInterval(timerInterval); switchScreen('screen-result');
         document.getElementById('finalScore').innerText = `${score}/${totalPoints}`;
-        
         let percent = (totalPoints === 0) ? 0 : (score/totalPoints)*100;
         let statusEl = document.getElementById('finalStatus');
         
-        if(percent >= 50) { 
-            statusEl.innerText = "สอบผ่าน!"; 
-            statusEl.classList.add('text-green-400'); 
-        } else { 
-            statusEl.innerText = "ไม่ผ่านเกณฑ์"; 
-            statusEl.classList.add('text-red-400'); 
-        }
+        if(percent >= 50) { statusEl.innerText = "สอบผ่าน!"; statusEl.classList.add('text-green-400'); } 
+        else { statusEl.innerText = "ไม่ผ่านเกณฑ์"; statusEl.classList.add('text-red-400'); }
         
         const saveRes = await apiCall('saveScore', { name: studentNameStr, score: score, total: totalPoints });
-        if(saveRes.success) {
-            document.getElementById('saveStatus').innerText = "บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว";
-            document.getElementById('saveStatus').classList.add('text-green-300');
-        } else {
-            document.getElementById('saveStatus').innerText = "เกิดข้อผิดพลาดในการบันทึก";
-            document.getElementById('saveStatus').classList.add('text-red-400');
-        }
+        if(saveRes.success) { document.getElementById('saveStatus').innerText = "บันทึกข้อมูลลงฐานข้อมูลเรียบร้อยแล้ว"; document.getElementById('saveStatus').classList.add('text-green-300'); } 
+        else { document.getElementById('saveStatus').innerText = "เกิดข้อผิดพลาดในการบันทึก"; document.getElementById('saveStatus').classList.add('text-red-400'); }
     }
 
-    // --- AR / MediaPipe Setup ---
-    const videoElement = document.getElementById('videoElement');
-    const canvasElement = document.getElementById('canvasOverlay');
-    const canvasCtx = canvasElement.getContext('2d');
+    // --- AR LOGIC ---
+    const videoElement = document.getElementById('videoElement'), canvasElement = document.getElementById('canvasOverlay'), canvasCtx = canvasElement.getContext('2d');
     let isPinched = false;
 
     function initAR() {
         const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
         hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
         hands.onResults(onARResults);
-
         const camera = new Camera(videoElement, { onFrame: async () => { await hands.send({image: videoElement}); }, width: 1280, height: 720 });
         camera.start();
-        
-        window.addEventListener('resize', () => {
-            canvasElement.width = window.innerWidth;
-            canvasElement.height = window.innerHeight;
-        });
-        canvasElement.width = window.innerWidth;
-        canvasElement.height = window.innerHeight;
+        window.addEventListener('resize', () => { canvasElement.width = window.innerWidth; canvasElement.height = window.innerHeight; });
+        canvasElement.width = window.innerWidth; canvasElement.height = window.innerHeight;
     }
 
     function onARResults(results) {
-        canvasCtx.save();
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        
+        canvasCtx.save(); canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         const aiStatus = document.getElementById('ai-status');
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             aiStatus.classList.add('hide');
-            
             for (const landmarks of results.multiHandLandmarks) {
                 drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#ffffff', lineWidth: 2});
                 drawLandmarks(canvasCtx, landmarks, {color: '#3b82f6', lineWidth: 1, radius: 2});
@@ -314,69 +292,94 @@
                 let indexTip = landmarks[8];
                 let thumbTip = landmarks[4];
                 
-                // คำนวณแกน X ให้สัมพันธ์กับทิศทางการเคลื่อนที่ของหน้าจอ
-                let cursorX = indexTip.x * window.innerWidth;
+                // แก้ไขปัญหาทิศทางนิ้ว: กลับด้านแกน X ให้สัมพันธ์กับ Mirror Video
+                let cursorX = (1 - indexTip.x) * window.innerWidth; 
                 let cursorY = indexTip.y * window.innerHeight;
 
                 const cursorEl = document.getElementById('ar-cursor');
-                cursorEl.style.left = `${cursorX}px`;
-                cursorEl.style.top = `${cursorY}px`;
+                cursorEl.style.left = `${cursorX}px`; cursorEl.style.top = `${cursorY}px`;
 
-                // การจีบนิ้วเพื่อคลิก
                 let pinchDist = Math.hypot((1 - thumbTip.x) - (1 - indexTip.x), thumbTip.y - indexTip.y);
                 if (pinchDist < 0.05 && !isPinched) {
-                    isPinched = true;
-                    let target = document.elementFromPoint(cursorX, cursorY);
-                    if (target && target.classList.contains('choice-btn')) {
-                        target.click();
-                    }
-                } else if (pinchDist >= 0.06) {
-                    isPinched = false;
-                }
+                    isPinched = true; let target = document.elementFromPoint(cursorX, cursorY);
+                    if (target && target.classList.contains('choice-btn')) target.click();
+                } else if (pinchDist >= 0.06) { isPinched = false; }
             }
         } else {
-            if(!document.getElementById('screen-start').classList.contains('hide') === false && document.getElementById('screen-result').classList.contains('hide')) {
-                aiStatus.classList.remove('hide');
-            }
+            if(!document.getElementById('screen-start').classList.contains('hide') === false && document.getElementById('screen-result').classList.contains('hide')) aiStatus.classList.remove('hide');
         }
         canvasCtx.restore();
     }
 
+    // --- TEACHER LOGIC ---
     async function showTeacherLogin() {
-        const gasUrl = document.getElementById('gasUrlInput').value.trim();
-        if (!gasUrl) return alert("กรุณาวาง URL ของ API (Google Apps Script) ก่อน");
-
-        let pwd = prompt("กรุณาใส่รหัสผ่านครูผู้สอน:");
+        if (!document.getElementById('gasUrlInput').value.trim()) return alert("กรุณาวาง URL ของ API ก่อน");
+        let pwd = prompt("กรุณาใส่รหัสผ่านครูผู้สอน (ค่าเริ่มต้น 1234):");
         if(!pwd) return;
         
-        document.getElementById('ai-status').classList.remove('hide');
-        document.getElementById('ai-status').innerText = "กำลังตรวจสอบสิทธิ์...";
-
+        document.getElementById('ai-status').classList.remove('hide'); document.getElementById('ai-status').innerText = "กำลังตรวจสอบสิทธิ์...";
         const authRes = await apiCall('verifyTeacher', { password: pwd });
         document.getElementById('ai-status').classList.add('hide');
 
-        if(authRes.success && authRes.isValid) {
-            switchScreen('screen-teacher');
-            const dataRes = await apiCall('getScoresData');
+        if(authRes.success && authRes.isValid) { switchScreen('screen-teacher'); loadTeacherData(); } 
+        else { alert("รหัสผ่านผิด!"); }
+    }
+
+    async function loadTeacherData() {
+        const res = await apiCall('getTeacherData');
+        if (res.success) {
+            // ตั้งเวลา
+            document.getElementById('timerSet').value = res.data.timer || 60;
             
-            if(dataRes.success) {
-                let html = '';
-                dataRes.data.forEach(s => {
-                    let dateStr = new Date(s[0]).toLocaleDateString('th-TH');
-                    let statusClass = s[5] === 'ผ่าน' ? 'text-green-400 bg-green-900/30' : 'text-red-400 bg-red-900/30';
-                    html += `
-                        <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
-                            <td class="p-3">${dateStr}</td>
-                            <td class="p-3 font-semibold">${s[1]}</td>
-                            <td class="p-3">${s[2]}/${s[3]} (${s[4]})</td>
-                            <td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ${statusClass}">${s[5]}</span></td>
-                        </tr>`;
-                });
-                document.getElementById('scoreTableBody').innerHTML = html;
-            }
-        } else { 
-            alert("รหัสผ่านผิด หรือไม่สามารถเชื่อมต่อได้!"); 
+            // ตารางโจทย์
+            let qHtml = '';
+            res.data.questions.forEach(q => {
+                qHtml += `<tr class="border-b border-white/5"><td class="p-2 whitespace-normal">${q.q}</td><td class="p-2 text-center font-bold text-green-400">${q.ans}</td>
+                <td class="p-2 text-center"><button onclick="deleteQuestion(${q.rowIndex})" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs">ลบ</button></td></tr>`;
+            });
+            document.getElementById('questionsTableBody').innerHTML = qHtml || `<tr><td colspan="3" class="text-center p-3 text-gray-400">ยังไม่มีโจทย์</td></tr>`;
+            
+            // ตารางคะแนน
+            let sHtml = '';
+            res.data.scores.forEach(s => {
+                let dateStr = new Date(s[0]).toLocaleDateString('th-TH');
+                let statusClass = s[5] === 'ผ่าน' ? 'text-green-400 bg-green-900/30' : 'text-red-400 bg-red-900/30';
+                sHtml += `<tr class="border-b border-white/5"><td class="p-2">${dateStr}</td><td class="p-2 font-semibold">${s[1]}</td><td class="p-2">${s[2]}/${s[3]} (${s[4]})</td><td class="p-2"><span class="px-2 py-1 rounded text-xs font-bold ${statusClass}">${s[5]}</span></td></tr>`;
+            });
+            document.getElementById('scoreTableBody').innerHTML = sHtml || `<tr><td colspan="4" class="text-center p-3 text-gray-400">ยังไม่มีข้อมูล</td></tr>`;
         }
+    }
+
+    async function addQuestion() {
+        let q = document.getElementById('newQ').value.trim();
+        let c1 = document.getElementById('newC1').value.trim(); let c2 = document.getElementById('newC2').value.trim();
+        let c3 = document.getElementById('newC3').value.trim(); let c4 = document.getElementById('newC4').value.trim();
+        let ans = document.getElementById('newAns').value;
+        
+        if(!q || !c1 || !c2 || !c3 || !c4) return alert("กรุณากรอกโจทย์และตัวเลือกให้ครบ");
+        
+        document.getElementById('btnAddQ').innerText = "กำลังบันทึก...";
+        const res = await apiCall('addQuestion', { q, c1, c2, c3, c4, ans, points: 1 });
+        if(res.success) {
+            document.getElementById('newQ').value = ''; document.getElementById('newC1').value = ''; 
+            document.getElementById('newC2').value = ''; document.getElementById('newC3').value = ''; document.getElementById('newC4').value = '';
+            loadTeacherData();
+        } else { alert("เกิดข้อผิดพลาด"); }
+        document.getElementById('btnAddQ').innerText = "เพิ่มข้อสอบ";
+    }
+
+    async function deleteQuestion(rowIndex) {
+        if(!confirm("ต้องการลบคำถามข้อนี้ใช่หรือไม่?")) return;
+        const res = await apiCall('deleteQuestion', { rowIndex: rowIndex });
+        if(res.success) loadTeacherData(); else alert("ลบไม่สำเร็จ");
+    }
+
+    async function saveTimer() {
+        let min = document.getElementById('timerSet').value;
+        document.getElementById('timerStatus').innerText = "รอสักครู่...";
+        const res = await apiCall('updateTimer', { minutes: min });
+        if(res.success) document.getElementById('timerStatus').innerText = "บันทึกสำเร็จ!";
+        setTimeout(() => { document.getElementById('timerStatus').innerText = ""; }, 2000);
     }
 </script>
 </body>
