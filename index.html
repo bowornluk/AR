@@ -15,8 +15,7 @@
         #videoElement { display: none; }
         #canvasOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; transform: scaleX(-1); }
         
-        /* Cursor ของ AR */
-        #ar-cursor { position: fixed; width: 30px; height: 30px; border-radius: 50%; background-color: #3b82f6; opacity: 0.8; pointer-events: none; z-index: 50; transform: translate(-50%, -50%); transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        #ar-cursor { position: fixed; width: 34px; height: 34px; border-radius: 50%; background-color: #3b82f6; opacity: 0.9; pointer-events: none; z-index: 50; transform: translate(-50%, -50%); transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
         
         .choice-btn { transition: transform 0.2s, background-color 0.2s, opacity 0.5s; cursor: grab; user-select: none; }
         .choice-btn:active { cursor: grabbing; }
@@ -34,7 +33,6 @@
         }
         .shake { animation: shake 0.4s ease-in-out; }
 
-        /* พื้นที่วางคำตอบ (Drop Zone) */
         .drop-zone-active { background: rgba(74, 222, 128, 0.2) !important; border-color: #4ade80 !important; transform: scale(1.05); }
     </style>
 </head>
@@ -42,141 +40,144 @@
     
     <video id="videoElement" autoplay playsinline></video>
     <canvas id="canvasOverlay"></canvas>
+    
     <div id="ar-cursor"><span id="cursor-icon"></span></div>
     <div id="ai-status" class="fixed top-4 right-4 bg-yellow-500 text-black px-4 py-2 rounded-full font-bold z-20 text-sm hide">กำลังหามือของคุณ...</div>
 
-    <div class="relative z-20 h-full flex flex-col items-center justify-center p-4 sm:p-6">
+    <div class="relative z-20 h-full flex flex-col items-center justify-center p-4 sm:p-6 pointer-events-none">
         
-        <div id="screen-start" class="glass rounded-2xl p-6 sm:p-10 text-center w-full max-w-md">
-            <h1 class="text-3xl font-bold mb-4">ระบบข้อสอบ AR</h1>
-            <h2 class="text-xl mb-6">วิชา การวิเคราะห์ข้อมูล ปวส.</h2>
+        <div id="ui-layer" class="w-full h-full flex flex-col items-center justify-center pointer-events-auto">
             
-            <div class="mb-4 text-left">
-                <label class="text-sm text-yellow-300 mb-1 block font-bold">API URL (Google Apps Script):</label>
-                <input type="text" id="gasUrlInput" placeholder="วาง URL ของ Web App ที่นี่..." class="w-full p-3 rounded-lg text-black outline-none text-sm border-2 border-transparent focus:border-blue-500">
-            </div>
-
-            <div class="mb-6 text-left">
-                <label class="text-sm text-yellow-300 mb-1 block font-bold">ชื่อ-สกุล ผู้เข้าสอบ:</label>
-                <input type="text" id="studentName" placeholder="พิมพ์ชื่อ-สกุล ของคุณ" class="w-full p-3 rounded-lg text-black outline-none text-sm border-2 border-transparent focus:border-blue-500">
-            </div>
-
-            <button onclick="goToInstructions()" class="bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold text-lg shadow-lg transition-transform transform active:scale-95">เข้าสู่ระบบ (Start)</button>
-            <button onclick="showTeacherLogin()" class="mt-4 text-sm text-gray-200 hover:text-white underline">โหมดสำหรับครูผู้สอน</button>
-        </div>
-
-        <div id="screen-instructions" class="glass rounded-2xl p-8 text-center w-full max-w-lg hide">
-            <h2 class="text-2xl font-bold mb-4 text-yellow-300">วิธีใช้งานระบบ AR (Drag & Drop)</h2>
-            <ul class="text-left list-disc pl-5 mb-6 space-y-2">
-                <li>ใช้กล้อง WebCam ในการเล่น</li>
-                <li>ใช้ <b>"ปลายนิ้วโป้ง และ ปลายนิ้วชี้"</b> จีบเข้าหากันเหนือคำตอบ เพื่อ <b>"หยิบ"</b></li>
-                <li><b>"ลาก"</b> การ์ดคำตอบไปใส่ในพื้นที่ <b>"รถเข็น"</b> ด้านบนขวา</li>
-                <li>คลายนิ้วออกเพื่อ <b>"ปล่อย"</b> (หากใช้เมาส์/มือถือ ให้คลิกค้างแล้วลาก)</li>
-            </ul>
-            <button onclick="startGame()" class="bg-green-500 hover:bg-green-600 w-full py-3 rounded-lg font-bold text-lg shadow-lg">เริ่มทำแบบทดสอบ!</button>
-        </div>
-
-        <div id="screen-game" class="w-full max-w-5xl h-full flex flex-col hide">
-            <div class="flex justify-between items-center mb-4 bg-black/40 p-4 rounded-xl flex-wrap gap-2">
-                <div class="text-xl font-bold text-yellow-400">เวลา: <span id="timerDisplay">00:00</span></div>
-                <div class="text-xl font-bold">ความคืบหน้า: <span id="qCurrent">1</span>/<span id="qTotal">10</span></div>
+            <div id="screen-start" class="glass rounded-2xl p-6 sm:p-10 text-center w-full max-w-md">
+                <h1 class="text-3xl font-bold mb-4">ระบบข้อสอบ AR</h1>
+                <h2 class="text-xl mb-6">วิชา การวิเคราะห์ข้อมูล ปวส.</h2>
                 
-                <div id="cart-drop-zone" class="text-xl font-bold text-green-400 flex items-center gap-2 p-3 rounded-xl bg-white/10 border-2 border-dashed border-white/40 transition-all duration-300">
-                    คะแนน: <span id="scoreDisplay">0</span>
-                    <div id="cart-icon" class="ml-2 bg-white/20 p-2 rounded-full relative transition-transform">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="glass flex-grow rounded-2xl p-6 sm:p-8 flex flex-col relative">
-                <button onclick="skipQuestion()" class="absolute top-4 right-4 bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-1 z-10 transition-transform active:scale-95">
-                    ข้ามข้อนี้ <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-                </button>
-
-                <div id="questionText" class="text-2xl sm:text-3xl font-bold text-center mb-8 h-24 flex items-center justify-center pr-24 pl-8 transition-opacity duration-300">กำลังโหลดคำถาม...</div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow relative" id="choices-container">
-                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c1"></div>
-                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c2"></div>
-                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c3"></div>
-                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c4"></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="screen-result" class="glass rounded-2xl p-10 text-center w-full max-w-md hide">
-            <h1 class="text-4xl font-bold mb-4">จบการทดสอบ!</h1>
-            <p class="text-2xl mb-2">คะแนนของคุณ</p>
-            <div class="text-6xl font-bold text-yellow-400 mb-6" id="finalScore">0/0</div>
-            <div id="finalStatus" class="text-3xl font-bold mb-6"></div>
-            <p class="text-gray-200" id="saveStatus">กำลังบันทึกข้อมูล...</p>
-            <button onclick="location.reload()" class="mt-6 bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold">กลับหน้าหลัก</button>
-        </div>
-
-        <div id="screen-teacher" class="glass rounded-2xl p-4 sm:p-8 w-full max-w-5xl h-[95vh] flex flex-col hide">
-            <div class="flex justify-between items-center mb-4 gap-2 border-b border-white/20 pb-4">
-                <h1 class="text-xl sm:text-2xl font-bold">โหมดจัดการสำหรับครู</h1>
-                <button onclick="location.reload()" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded font-bold shadow-lg">ออกระบบ</button>
-            </div>
-            
-            <div class="overflow-y-auto custom-scrollbar flex-grow flex flex-col gap-6 pr-2">
-                <div class="bg-black/30 rounded-lg p-4">
-                    <h2 class="text-lg text-yellow-300 font-semibold mb-3">ตั้งค่าเวลาแบบทดสอบ</h2>
-                    <div class="flex items-center gap-3">
-                        <select id="timerSet" class="bg-white text-black p-2 rounded outline-none font-bold">
-                            <option value="60">60 นาที</option>
-                            <option value="90">90 นาที</option>
-                            <option value="120">120 นาที</option>
-                        </select>
-                        <button onclick="saveTimer()" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded font-bold">บันทึกเวลา</button>
-                        <span id="timerStatus" class="text-sm text-green-400"></span>
-                    </div>
+                <div class="mb-4 text-left">
+                    <label class="text-sm text-yellow-300 mb-1 block font-bold">API URL (Google Apps Script):</label>
+                    <input type="text" id="gasUrlInput" placeholder="วาง URL ของ Web App ที่นี่..." class="w-full p-3 rounded-lg text-black outline-none text-sm border-2 border-transparent focus:border-blue-500">
                 </div>
 
-                <div class="bg-black/30 rounded-lg p-4">
-                    <h2 class="text-lg text-yellow-300 font-semibold mb-3">เพิ่มคำถามใหม่</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                        <input type="text" id="newQ" placeholder="โจทย์คำถาม" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400 sm:col-span-2">
-                        <input type="text" id="newC1" placeholder="ตัวเลือกที่ 1" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
-                        <input type="text" id="newC2" placeholder="ตัวเลือกที่ 2" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
-                        <input type="text" id="newC3" placeholder="ตัวเลือกที่ 3" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
-                        <input type="text" id="newC4" placeholder="ตัวเลือกที่ 4" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
-                    </div>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <div class="flex items-center gap-2">
-                            <label class="font-semibold text-sm">เฉลย (ข้อถูก):</label>
-                            <select id="newAns" class="bg-white text-black p-2 rounded outline-none font-bold text-sm">
-                                <option value="1">ตัวเลือก 1</option><option value="2">ตัวเลือก 2</option>
-                                <option value="3">ตัวเลือก 3</option><option value="4">ตัวเลือก 4</option>
-                            </select>
+                <div class="mb-6 text-left">
+                    <label class="text-sm text-yellow-300 mb-1 block font-bold">ชื่อ-สกุล ผู้เข้าสอบ:</label>
+                    <input type="text" id="studentName" placeholder="พิมพ์ชื่อ-สกุล ของคุณ" class="w-full p-3 rounded-lg text-black outline-none text-sm border-2 border-transparent focus:border-blue-500">
+                </div>
+
+                <button onclick="goToInstructions()" class="bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold text-lg shadow-lg transition-transform transform active:scale-95">เข้าสู่ระบบ (Start)</button>
+                <button onclick="showTeacherLogin()" class="mt-4 text-sm text-gray-200 hover:text-white underline">โหมดสำหรับครูผู้สอน</button>
+            </div>
+
+            <div id="screen-instructions" class="glass rounded-2xl p-8 text-center w-full max-w-lg hide">
+                <h2 class="text-2xl font-bold mb-4 text-yellow-300">วิธีใช้งานระบบ AR (Drag & Drop)</h2>
+                <ul class="text-left list-disc pl-5 mb-6 space-y-2">
+                    <li>ใช้กล้อง WebCam ในการเล่น (ถอยห่างให้เห็นทั้งมือ)</li>
+                    <li>ใช้ <b>"มือจีบเข้าหากันทั้ง 5 นิ้ว"</b> เพื่อ <b>"หยิบ"</b> หรือกดปุ่ม</li>
+                    <li><b>"ลาก"</b> การ์ดคำตอบไปใส่ในพื้นที่ <b>"รถเข็น"</b> ด้านบนขวา</li>
+                    <li><b>"กางนิ้วออก (แบมือ)"</b> เพื่อ <b>"ปล่อย"</b> คำตอบลงรถเข็น</li>
+                </ul>
+                <button onclick="startGame()" class="bg-green-500 hover:bg-green-600 w-full py-3 rounded-lg font-bold text-lg shadow-lg">เริ่มทำแบบทดสอบ!</button>
+            </div>
+
+            <div id="screen-game" class="w-full max-w-5xl h-full flex flex-col hide">
+                <div class="flex justify-between items-center mb-4 bg-black/40 p-4 rounded-xl flex-wrap gap-2">
+                    <div class="text-xl font-bold text-yellow-400">เวลา: <span id="timerDisplay">00:00</span></div>
+                    <div class="text-xl font-bold">ความคืบหน้า: <span id="qCurrent">1</span>/<span id="qTotal">10</span></div>
+                    
+                    <div id="cart-drop-zone" class="text-xl font-bold text-green-400 flex items-center gap-2 p-3 rounded-xl bg-white/10 border-2 border-dashed border-white/40 transition-all duration-300">
+                        คะแนน: <span id="scoreDisplay">0</span>
+                        <div id="cart-icon" class="ml-2 bg-white/20 p-2 rounded-full relative transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
                         </div>
-                        <button onclick="addQuestion()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded font-bold shadow-lg" id="btnAddQ">เพิ่มข้อสอบ</button>
-                    </div>
-
-                    <div class="mt-6 overflow-x-auto rounded border border-white/10">
-                        <table class="w-full text-left text-sm min-w-[700px]">
-                            <thead class="bg-black/40"><tr><th class="p-2">คำถาม</th><th class="p-2 text-center w-16">เฉลย</th><th class="p-2 text-center w-32">จัดการ</th></tr></thead>
-                            <tbody id="questionsTableBody" class="divide-y divide-white/10"></tbody>
-                        </table>
                     </div>
                 </div>
+                
+                <div class="glass flex-grow rounded-2xl p-6 sm:p-8 flex flex-col relative">
+                    <button onclick="skipQuestion()" class="absolute top-4 right-4 bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg text-sm flex items-center gap-1 z-10 transition-transform active:scale-95">
+                        ข้ามข้อนี้ <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                    </button>
 
-                <div class="bg-black/30 rounded-lg p-4">
-                    <h2 class="text-lg text-yellow-300 font-semibold mb-3">สรุปคะแนนนักเรียน</h2>
-                    <div class="overflow-x-auto rounded border border-white/10">
-                        <table class="w-full text-left text-sm min-w-[500px]">
-                            <thead class="bg-black/40"><tr><th class="p-2">วันที่</th><th class="p-2">ชื่อ-สกุล</th><th class="p-2">คะแนน</th><th class="p-2">สถานะ</th></tr></thead>
-                            <tbody id="scoreTableBody" class="divide-y divide-white/10"></tbody>
-                        </table>
+                    <div id="questionText" class="text-2xl sm:text-3xl font-bold text-center mb-8 h-24 flex items-center justify-center pr-24 pl-8 transition-opacity duration-300">กำลังโหลดคำถาม...</div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow relative" id="choices-container">
+                        <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c1"></div>
+                        <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c2"></div>
+                        <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c3"></div>
+                        <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c4"></div>
                     </div>
                 </div>
-
             </div>
-        </div>
-    </div>
+
+            <div id="screen-result" class="glass rounded-2xl p-10 text-center w-full max-w-md hide">
+                <h1 class="text-4xl font-bold mb-4">จบการทดสอบ!</h1>
+                <p class="text-2xl mb-2">คะแนนของคุณ</p>
+                <div class="text-6xl font-bold text-yellow-400 mb-6" id="finalScore">0/0</div>
+                <div id="finalStatus" class="text-3xl font-bold mb-6"></div>
+                <p class="text-gray-200" id="saveStatus">กำลังบันทึกข้อมูล...</p>
+                <button onclick="location.reload()" class="mt-6 bg-blue-500 hover:bg-blue-600 w-full py-3 rounded-lg font-bold">กลับหน้าหลัก</button>
+            </div>
+
+            <div id="screen-teacher" class="glass rounded-2xl p-4 sm:p-8 w-full max-w-5xl h-[95vh] flex flex-col hide">
+                <div class="flex justify-between items-center mb-4 gap-2 border-b border-white/20 pb-4">
+                    <h1 class="text-xl sm:text-2xl font-bold">โหมดจัดการสำหรับครู</h1>
+                    <button onclick="location.reload()" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded font-bold shadow-lg">ออกระบบ</button>
+                </div>
+                
+                <div class="overflow-y-auto custom-scrollbar flex-grow flex flex-col gap-6 pr-2">
+                    <div class="bg-black/30 rounded-lg p-4">
+                        <h2 class="text-lg text-yellow-300 font-semibold mb-3">ตั้งค่าเวลาแบบทดสอบ</h2>
+                        <div class="flex items-center gap-3">
+                            <select id="timerSet" class="bg-white text-black p-2 rounded outline-none font-bold">
+                                <option value="60">60 นาที</option>
+                                <option value="90">90 นาที</option>
+                                <option value="120">120 นาที</option>
+                            </select>
+                            <button onclick="saveTimer()" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded font-bold">บันทึกเวลา</button>
+                            <span id="timerStatus" class="text-sm text-green-400"></span>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/30 rounded-lg p-4">
+                        <h2 class="text-lg text-yellow-300 font-semibold mb-3">เพิ่มคำถามใหม่</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                            <input type="text" id="newQ" placeholder="โจทย์คำถาม" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400 sm:col-span-2">
+                            <input type="text" id="newC1" placeholder="ตัวเลือกที่ 1" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
+                            <input type="text" id="newC2" placeholder="ตัวเลือกที่ 2" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
+                            <input type="text" id="newC3" placeholder="ตัวเลือกที่ 3" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
+                            <input type="text" id="newC4" placeholder="ตัวเลือกที่ 4" class="w-full p-2 rounded bg-white/10 text-white outline-none border border-white/20 focus:border-blue-400">
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex items-center gap-2">
+                                <label class="font-semibold text-sm">เฉลย (ข้อถูก):</label>
+                                <select id="newAns" class="bg-white text-black p-2 rounded outline-none font-bold text-sm">
+                                    <option value="1">ตัวเลือก 1</option><option value="2">ตัวเลือก 2</option>
+                                    <option value="3">ตัวเลือก 3</option><option value="4">ตัวเลือก 4</option>
+                                </select>
+                            </div>
+                            <button onclick="addQuestion()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded font-bold shadow-lg" id="btnAddQ">เพิ่มข้อสอบ</button>
+                        </div>
+
+                        <div class="mt-6 overflow-x-auto rounded border border-white/10">
+                            <table class="w-full text-left text-sm min-w-[700px]">
+                                <thead class="bg-black/40"><tr><th class="p-2">คำถาม</th><th class="p-2 text-center w-16">เฉลย</th><th class="p-2 text-center w-32">จัดการ</th></tr></thead>
+                                <tbody id="questionsTableBody" class="divide-y divide-white/10"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/30 rounded-lg p-4">
+                        <h2 class="text-lg text-yellow-300 font-semibold mb-3">สรุปคะแนนนักเรียน</h2>
+                        <div class="overflow-x-auto rounded border border-white/10">
+                            <table class="w-full text-left text-sm min-w-[500px]">
+                                <thead class="bg-black/40"><tr><th class="p-2">วันที่</th><th class="p-2">ชื่อ-สกุล</th><th class="p-2">คะแนน</th><th class="p-2">สถานะ</th></tr></thead>
+                                <tbody id="scoreTableBody" class="divide-y divide-white/10"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> </div>
 
 <script>
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -262,9 +263,8 @@
         document.getElementById('qCurrent').innerText = currentProgress;
         
         document.getElementById('questionText').innerText = q.q;
-        document.getElementById('questionText').style.color = "white"; // เคลียร์สีข้อความ smoothing
+        document.getElementById('questionText').style.color = "white";
         
-        // คืนค่าความโปร่งใสของช้อยส์หลังจาก Smoothing เสร็จสิ้น
         document.querySelectorAll('.choice-btn').forEach(btn => btn.style.opacity = '1');
 
         document.getElementById('c1').innerText = q.c1; document.getElementById('c2').innerText = q.c2;
@@ -289,18 +289,15 @@
     let originalChoiceEl = null;
     let draggedChoiceNum = 0;
     
-    // ฟังก์ชันเริ่มลาก
     function startDrag(element, x, y) {
         if (isProcessingLogic) return;
         isDragging = true;
         originalChoiceEl = element;
         draggedChoiceNum = parseInt(element.id.replace('c', ''));
         
-        // สร้างการ์ดลอย (Clone)
         dragClone = element.cloneNode(true);
         let rect = element.getBoundingClientRect();
         
-        // เก็บระยะห่างจากมุมการ์ด เพื่อไม่ให้การ์ดกระตุกไปหาจุดกึ่งกลางเมาส์
         dragClone.offsetX = x - rect.left;
         dragClone.offsetY = y - rect.top;
         
@@ -311,21 +308,20 @@
         dragClone.style.height = rect.height + 'px';
         dragClone.style.margin = '0';
         dragClone.style.zIndex = '9999';
-        dragClone.style.opacity = '0.9';
-        dragClone.style.pointerEvents = 'none'; // เพื่อให้ elementFromPoint ทะลุไปหาตะกร้าได้
-        dragClone.style.boxShadow = "0 10px 25px rgba(0,0,0,0.5)";
+        dragClone.style.opacity = '0.95';
+        dragClone.style.pointerEvents = 'none'; 
+        dragClone.style.boxShadow = "0 15px 30px rgba(0,0,0,0.6)";
+        dragClone.style.border = "2px solid #3b82f6";
         
         document.body.appendChild(dragClone);
-        originalChoiceEl.style.opacity = '0.3'; // ทำให้ตัวต้นฉบับจางลง
+        originalChoiceEl.style.opacity = '0.2'; 
     }
 
-    // ฟังก์ชันระหว่างลาก
     function moveDrag(x, y) {
         if (dragClone && isDragging) {
             dragClone.style.left = (x - dragClone.offsetX) + 'px';
             dragClone.style.top = (y - dragClone.offsetY) + 'px';
 
-            // เช็คว่าลากมาโดนตะกร้าหรือไม่ เพื่อทำไฮไลต์ตะกร้า
             let dropZone = document.getElementById('cart-drop-zone');
             let dropRect = dropZone.getBoundingClientRect();
             if (x >= dropRect.left && x <= dropRect.right && y >= dropRect.top && y <= dropRect.bottom) {
@@ -336,7 +332,6 @@
         }
     }
 
-    // ฟังก์ชันเมื่อปล่อยนิ้ว
     function dropDrag(x, y) {
         if (!isDragging) return;
         isDragging = false;
@@ -345,12 +340,9 @@
         dropZone.classList.remove('drop-zone-active');
         let dropRect = dropZone.getBoundingClientRect();
         
-        // ตรวจสอบว่าจุดที่ปล่อย (x,y) อยู่ในกรอบตะกร้าสินค้าหรือไม่
         if (x >= dropRect.left && x <= dropRect.right && y >= dropRect.top && y <= dropRect.bottom) {
-            // วางลงตะกร้าสำเร็จ ตรวจคำตอบ
             handleAnswerDrop(draggedChoiceNum);
         } else {
-            // วางผิดที่ ให้เด้งกลับไปที่เดิม
             dragClone.style.transition = 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
             let rect = originalChoiceEl.getBoundingClientRect();
             dragClone.style.left = rect.left + 'px';
@@ -364,53 +356,45 @@
         }
     }
 
-    // ฟังก์ชันตรวจสอบคำตอบและ Smoothing Effect
     function handleAnswerDrop(choiceNum) {
         isProcessingLogic = true;
         totalPoints += currentQPoints;
         let cartEl = document.getElementById('cart-icon');
         let qText = document.getElementById('questionText');
         
-        // ซ่อนช้อยส์อื่นๆ เพื่อเข้าสู่ช่วง Smoothing
         document.querySelectorAll('.choice-btn').forEach(btn => {
             if(btn !== originalChoiceEl) btn.style.opacity = '0';
         });
 
         if (choiceNum == currentCorrectAns) {
-            // --- ตอบถูก ---
             score += currentQPoints; 
             document.getElementById('scoreDisplay').innerText = score;
             playBeep('correct');
             
             dragClone.style.transition = 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)';
-            dragClone.style.boxShadow = "0 0 0 6px #4ade80"; // กรอบเขียว
+            dragClone.style.boxShadow = "0 0 0 6px #4ade80"; 
             
-            // แอนิเมชันลอยย่อส่วนเข้าตะกร้า
             let cartRect = cartEl.getBoundingClientRect();
             dragClone.style.left = (cartRect.left - 10) + 'px';
             dragClone.style.top = (cartRect.top - 10) + 'px';
             dragClone.style.transform = 'scale(0.1)';
             dragClone.style.opacity = '0';
             
-            cartEl.style.transform = 'scale(1.3)'; // ตะกร้าเด้งรับ
+            cartEl.style.transform = 'scale(1.3)'; 
             setTimeout(() => cartEl.style.transform = 'scale(1)', 400);
             
-            // Text Smoothing
             qText.innerText = "🎉 ยอดเยี่ยม! ถูกต้องครับ";
             qText.style.color = "#4ade80";
 
         } else {
-            // --- ตอบผิด ---
             playBeep('wrong');
             dragClone.style.transition = 'all 0.3s ease';
-            dragClone.style.boxShadow = "0 0 0 6px #ef4444"; // กรอบแดง
+            dragClone.style.boxShadow = "0 0 0 6px #ef4444"; 
             dragClone.classList.add('shake');
             
-            // Text Smoothing
             qText.innerText = "❌ ยังไม่ถูกนะ ข้อนี้ต้องข้ามไปก่อน";
             qText.style.color = "#ef4444";
             
-            // เด้งกลับที่เดิม
             setTimeout(() => {
                 let rect = originalChoiceEl.getBoundingClientRect();
                 dragClone.style.left = rect.left + 'px';
@@ -419,18 +403,16 @@
             }, 400);
         }
 
-        // ดีเลย์หน่วงเวลา (Smoothing) ก่อนโหลดข้อถัดไป
         setTimeout(() => {
             if (dragClone) dragClone.remove();
             originalChoiceEl.style.opacity = '1';
             
-            remainingQuestions.shift(); // เอาข้อนี้ออกจากคิวหลัก
+            remainingQuestions.shift();
             isProcessingLogic = false; 
-            loadQuestion(); // โหลดข้อถัดไป และแสดงช้อยส์กลับมา
-        }, 1800); // หน่วงเวลาให้ผู้เล่นดูผล 1.8 วินาที (Smoothing Time)
+            loadQuestion(); 
+        }, 1800); 
     }
 
-    // --- เชื่อมต่อ Mouse & Touch ให้ใช้ Drag/Drop ได้ด้วย ---
     let pointerIsDown = false;
     document.addEventListener('pointerdown', (e) => {
         let target = e.target.closest('.choice-btn');
@@ -452,65 +434,107 @@
     });
 
 
-    // --- AR LOGIC (เชื่อมระบบจีบนิ้วลาก) ---
+    // ==========================================
+    // AR LOGIC (แก้ไขปัญหาค้าง & ระบบจีบ 5 นิ้ว & โชว์โครงมือ)
+    // ==========================================
     const videoElement = document.getElementById('videoElement'), canvasElement = document.getElementById('canvasOverlay'), canvasCtx = canvasElement.getContext('2d');
     let isPinched = false;
+    let isProcessingFrame = false; // ตัวป้องกันเฟรมค้าง
 
     function initAR() {
         const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
         hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
         hands.onResults(onARResults);
-        const camera = new Camera(videoElement, { onFrame: async () => { await hands.send({image: videoElement}); }, width: 1280, height: 720 });
+        
+        const camera = new Camera(videoElement, { 
+            onFrame: async () => { 
+                // ป้องกันปัญหา Frame Stacking (สาเหตุหลักที่กล้องค้าง)
+                if (isProcessingFrame) return;
+                isProcessingFrame = true;
+                try {
+                    await hands.send({image: videoElement}); 
+                } catch (e) {
+                    console.error("Camera Error:", e);
+                } finally {
+                    isProcessingFrame = false;
+                }
+            }, 
+            width: 1280, height: 720 
+        });
         camera.start();
+        
         window.addEventListener('resize', () => { canvasElement.width = window.innerWidth; canvasElement.height = window.innerHeight; });
         canvasElement.width = window.innerWidth; canvasElement.height = window.innerHeight;
     }
 
     function onARResults(results) {
-        canvasCtx.save(); canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.save(); 
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        
         const aiStatus = document.getElementById('ai-status');
+        
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             aiStatus.classList.add('hide');
+            
             for (const landmarks of results.multiHandLandmarks) {
-                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#ffffff', lineWidth: 2});
-                drawLandmarks(canvasCtx, landmarks, {color: '#3b82f6', lineWidth: 1, radius: 2});
+                // วาดเส้นกระดูกมือให้ชัดเจน (Hand Skeleton)
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#ffffff', lineWidth: 3});
+                drawLandmarks(canvasCtx, landmarks, {color: '#4ade80', lineWidth: 1, radius: 4}); // จุดสีเขียวอ่อน
                 
-                let indexTip = landmarks[8];
-                let thumbTip = landmarks[4];
+                // ดึงจุดปลายนิ้วทั้ง 5
+                let thumb = landmarks[4];
+                let index = landmarks[8];
+                let middle = landmarks[12];
+                let ring = landmarks[16];
+                let pinky = landmarks[20];
                 
-                let cursorX = (1 - indexTip.x) * window.innerWidth; 
-                let cursorY = indexTip.y * window.innerHeight;
+                // คำนวณระยะห่างของทุกนิ้วจากนิ้วโป้ง เพื่อเช็คการ "จีบ 5 นิ้ว"
+                let d1 = Math.hypot(index.x - thumb.x, index.y - thumb.y);
+                let d2 = Math.hypot(middle.x - thumb.x, middle.y - thumb.y);
+                let d3 = Math.hypot(ring.x - thumb.x, ring.y - thumb.y);
+                let d4 = Math.hypot(pinky.x - thumb.x, pinky.y - thumb.y);
+                
+                let avgDist = (d1 + d2 + d3 + d4) / 4; // ระยะห่างเฉลี่ย
+
+                // หาจุดกึ่งกลางของนิ้วทั้ง 5 เพื่อใช้เป็นจุดพิกัดการลาก (Centroid)
+                let pinchX = (thumb.x + index.x + middle.x + ring.x + pinky.x) / 5;
+                let pinchY = (thumb.y + index.y + middle.y + ring.y + pinky.y) / 5;
+                
+                // แปลงพิกัดให้ตรงกับหน้าจอจริง (Mirror Effect)
+                let cursorX = (1 - pinchX) * window.innerWidth; 
+                let cursorY = pinchY * window.innerHeight;
 
                 const cursorEl = document.getElementById('ar-cursor');
-                cursorEl.style.left = `${cursorX}px`; cursorEl.style.top = `${cursorY}px`;
+                cursorEl.style.left = `${cursorX}px`; 
+                cursorEl.style.top = `${cursorY}px`;
 
-                let pinchDist = Math.hypot((1 - thumbTip.x) - (1 - indexTip.x), thumbTip.y - indexTip.y);
-                
-                if (pinchDist < 0.05) {
+                // Logic: จีบนิ้ว (Pinch - Grab) & กางนิ้ว (Open - Drop)
+                if (avgDist < 0.10) { 
+                    // ถ้าปลายนิ้วทั้งหมดอยู่ใกล้กัน (หยิบ)
                     if (!isPinched) {
                         isPinched = true;
-                        // จังหวะเพิ่งเริ่มจีบนิ้ว -> จับการ์ด
                         if (!isDragging && !isProcessingLogic) {
                             let target = document.elementFromPoint(cursorX, cursorY);
                             if (target) {
                                 let choiceBtn = target.closest('.choice-btn');
                                 if (choiceBtn) {
                                     startDrag(choiceBtn, cursorX, cursorY);
-                                    cursorEl.style.backgroundColor = '#10b981'; // เปลี่ยนสีเคอร์เซอร์ตอนหยิบ
+                                    cursorEl.style.backgroundColor = '#10b981'; // เปลี่ยนเคอร์เซอร์เป็นสีเขียวตอนหยิบ
+                                    cursorEl.style.transform = 'translate(-50%, -50%) scale(0.8)';
                                 } else if (target.closest('button')) {
-                                    target.closest('button').click(); // สำหรับกดปุ่มข้ามข้อ
+                                    target.closest('button').click(); // สำหรับปุ่มข้ามข้อ
                                 }
                             }
                         }
                     } else if (isDragging) {
-                        // จังหวะจีบนิ้วค้างไว้ -> ลากการ์ดตาม
-                        moveDrag(cursorX, cursorY);
+                        moveDrag(cursorX, cursorY); // ลากไปเรื่อยๆ
                     }
-                } else if (pinchDist >= 0.06) {
+                } else if (avgDist > 0.15) { 
+                    // ถ้ากางนิ้วออก (ปล่อย)
                     if (isPinched) {
                         isPinched = false;
                         cursorEl.style.backgroundColor = '#3b82f6';
-                        // จังหวะปล่อยนิ้ว -> วางการ์ด
+                        cursorEl.style.transform = 'translate(-50%, -50%) scale(1)';
                         if (isDragging) {
                             dropDrag(cursorX, cursorY);
                         }
@@ -518,7 +542,17 @@
                 }
             }
         } else {
-            if(!document.getElementById('screen-start').classList.contains('hide') === false && document.getElementById('screen-result').classList.contains('hide')) aiStatus.classList.remove('hide');
+            // กรณีมองไม่เห็นมือ
+            if(!document.getElementById('screen-start').classList.contains('hide') === false && document.getElementById('screen-result').classList.contains('hide')) {
+                aiStatus.classList.remove('hide');
+            }
+            
+            // ถ้ายกมือออกนอกจอขณะที่กำลังลากอยู่ ให้ถือว่าปล่อยผิดที่
+            if (isDragging) {
+                isPinched = false;
+                document.getElementById('ar-cursor').style.backgroundColor = '#3b82f6';
+                dropDrag(window.innerWidth/2, 0); 
+            }
         }
         canvasCtx.restore();
     }
