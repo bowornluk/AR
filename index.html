@@ -10,19 +10,22 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     
     <style>
-        body { font-family: 'Prompt', sans-serif; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; overflow: hidden; }
+        body { font-family: 'Prompt', sans-serif; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; overflow: hidden; touch-action: none; }
         .glass { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
         #videoElement { display: none; }
         #canvasOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; transform: scaleX(-1); }
+        
+        /* Cursor ของ AR */
         #ar-cursor { position: fixed; width: 30px; height: 30px; border-radius: 50%; background-color: #3b82f6; opacity: 0.8; pointer-events: none; z-index: 50; transform: translate(-50%, -50%); transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-        .choice-btn { transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s; cursor: pointer; }
+        
+        .choice-btn { transition: transform 0.2s, background-color 0.2s, opacity 0.5s; cursor: grab; user-select: none; }
+        .choice-btn:active { cursor: grabbing; }
         .choice-btn:hover { transform: scale(1.02); background: rgba(255, 255, 255, 0.3); }
         .hide { display: none !important; }
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 10px; }
         
-        /* เอฟเฟกต์เขย่าเมื่อตอบผิด */
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-10px); }
@@ -30,6 +33,9 @@
             75% { transform: translateX(-10px); }
         }
         .shake { animation: shake 0.4s ease-in-out; }
+
+        /* พื้นที่วางคำตอบ (Drop Zone) */
+        .drop-zone-active { background: rgba(74, 222, 128, 0.2) !important; border-color: #4ade80 !important; transform: scale(1.05); }
     </style>
 </head>
 <body class="h-screen w-screen relative">
@@ -60,12 +66,12 @@
         </div>
 
         <div id="screen-instructions" class="glass rounded-2xl p-8 text-center w-full max-w-lg hide">
-            <h2 class="text-2xl font-bold mb-4 text-yellow-300">วิธีใช้งานระบบ AR</h2>
+            <h2 class="text-2xl font-bold mb-4 text-yellow-300">วิธีใช้งานระบบ AR (Drag & Drop)</h2>
             <ul class="text-left list-disc pl-5 mb-6 space-y-2">
                 <li>ใช้กล้อง WebCam ในการเล่น</li>
-                <li>ใช้ <b>"นิ้วชี้"</b> เป็นเคอร์เซอร์เล็งไปที่คำตอบ</li>
-                <li><b>"จีบนิ้ว"</b> (นิ้วโป้งแตะนิ้วชี้) เพื่อเสมือนการกดปุ่มคลิกตอบ</li>
-                <li>หรือใช้ <b>เมาส์/ทัชสกรีน</b> คลิกที่ปุ่มคำตอบได้ทันที</li>
+                <li>ใช้ <b>"ปลายนิ้วโป้ง และ ปลายนิ้วชี้"</b> จีบเข้าหากันเหนือคำตอบ เพื่อ <b>"หยิบ"</b></li>
+                <li><b>"ลาก"</b> การ์ดคำตอบไปใส่ในพื้นที่ <b>"รถเข็น"</b> ด้านบนขวา</li>
+                <li>คลายนิ้วออกเพื่อ <b>"ปล่อย"</b> (หากใช้เมาส์/มือถือ ให้คลิกค้างแล้วลาก)</li>
             </ul>
             <button onclick="startGame()" class="bg-green-500 hover:bg-green-600 w-full py-3 rounded-lg font-bold text-lg shadow-lg">เริ่มทำแบบทดสอบ!</button>
         </div>
@@ -74,9 +80,10 @@
             <div class="flex justify-between items-center mb-4 bg-black/40 p-4 rounded-xl flex-wrap gap-2">
                 <div class="text-xl font-bold text-yellow-400">เวลา: <span id="timerDisplay">00:00</span></div>
                 <div class="text-xl font-bold">ความคืบหน้า: <span id="qCurrent">1</span>/<span id="qTotal">10</span></div>
-                <div class="text-xl font-bold text-green-400 flex items-center gap-2">
+                
+                <div id="cart-drop-zone" class="text-xl font-bold text-green-400 flex items-center gap-2 p-3 rounded-xl bg-white/10 border-2 border-dashed border-white/40 transition-all duration-300">
                     คะแนน: <span id="scoreDisplay">0</span>
-                    <div id="cart-icon" class="ml-4 bg-white/20 p-2 rounded-full relative">
+                    <div id="cart-icon" class="ml-2 bg-white/20 p-2 rounded-full relative transition-transform">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
@@ -89,13 +96,13 @@
                     ข้ามข้อนี้ <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
                 </button>
 
-                <div id="questionText" class="text-2xl sm:text-3xl font-bold text-center mb-8 h-24 flex items-center justify-center pr-24 pl-8">กำลังโหลดคำถาม...</div>
+                <div id="questionText" class="text-2xl sm:text-3xl font-bold text-center mb-8 h-24 flex items-center justify-center pr-24 pl-8 transition-opacity duration-300">กำลังโหลดคำถาม...</div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow relative">
-                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" onclick="checkAnswer(1)" id="c1"></div>
-                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" onclick="checkAnswer(2)" id="c2"></div>
-                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" onclick="checkAnswer(3)" id="c3"></div>
-                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" onclick="checkAnswer(4)" id="c4"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow relative" id="choices-container">
+                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c1"></div>
+                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c2"></div>
+                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c3"></div>
+                    <div class="choice-btn glass rounded-xl p-6 text-xl flex items-center justify-center font-bold text-center" id="c4"></div>
                 </div>
             </div>
         </div>
@@ -183,7 +190,7 @@
     }
 
     let quizData = [];
-    let remainingQuestions = []; // คิวสำหรับเก็บข้อที่เหลือหรือถูกข้าม
+    let remainingQuestions = []; 
     let originalTotalQuestions = 0;
     
     let score = 0, totalPoints = 0, timerInterval, timeLeft = 0, studentNameStr = '';
@@ -200,7 +207,7 @@
 
     async function apiCall(action, data = {}) {
         const gasUrl = document.getElementById('gasUrlInput').value.trim();
-        if (!gasUrl) { alert('กรุณาวาง URL ของ API (Google Apps Script) ก่อน'); return { success: false }; }
+        if (!gasUrl) { alert('กรุณาวาง URL ของ API ก่อน'); return { success: false }; }
         localStorage.setItem('SAVED_GAS_URL', gasUrl);
         try {
             const response = await fetch(gasUrl, { method: 'POST', body: JSON.stringify({ action: action, data: data }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
@@ -219,10 +226,10 @@
         const res = await apiCall('getQuizData');
         if (res.success) {
             quizData = res.data.questions.sort(() => Math.random() - 0.5);
-            remainingQuestions = [...quizData]; // คัดลอกใส่คิว
+            remainingQuestions = [...quizData]; 
             originalTotalQuestions = quizData.length;
 
-            if(quizData.length === 0) { alert("ยังไม่มีโจทย์คำถามในระบบ กรุณาให้ครูเพิ่มโจทย์ก่อน"); document.getElementById('ai-status').classList.add('hide'); return; }
+            if(quizData.length === 0) { alert("ยังไม่มีโจทย์คำถามในระบบ"); document.getElementById('ai-status').classList.add('hide'); return; }
             timeLeft = res.data.timer * 60;
             document.getElementById('ai-status').classList.add('hide');
             switchScreen('screen-instructions');
@@ -250,129 +257,202 @@
     function loadQuestion() {
         if(remainingQuestions.length === 0) return endGame();
         
-        let q = remainingQuestions[0]; // ดึงข้อแรกในคิวมาถาม
-        
-        // คำนวณว่าตอนนี้ทำข้อที่เท่าไหร่แล้ว
+        let q = remainingQuestions[0]; 
         let currentProgress = originalTotalQuestions - remainingQuestions.length + 1;
         document.getElementById('qCurrent').innerText = currentProgress;
         
         document.getElementById('questionText').innerText = q.q;
+        document.getElementById('questionText').style.color = "white"; // เคลียร์สีข้อความ smoothing
+        
+        // คืนค่าความโปร่งใสของช้อยส์หลังจาก Smoothing เสร็จสิ้น
+        document.querySelectorAll('.choice-btn').forEach(btn => btn.style.opacity = '1');
+
         document.getElementById('c1').innerText = q.c1; document.getElementById('c2').innerText = q.c2;
         document.getElementById('c3').innerText = q.c3; document.getElementById('c4').innerText = q.c4;
         currentCorrectAns = q.ans; currentQPoints = q.points;
     }
 
-    // ฟังก์ชันข้ามข้อ
     function skipQuestion() {
-        if(isProcessingClick || remainingQuestions.length <= 1) return; // ข้ามไม่ได้ถ้าเหลือข้อเดียว
-        
-        // ดันข้อปัจจุบันไปไว้ท้ายคิว
+        if(isProcessingLogic || remainingQuestions.length <= 1) return; 
         const skippedQ = remainingQuestions.shift(); 
         remainingQuestions.push(skippedQ);
-        
-        // โหลดข้อถัดไป
         loadQuestion();
     }
 
-    let isProcessingClick = false;
+
+    // ==========================================
+    // ระบบ DRAG & DROP (รองรับทั้ง AR และ Mouse/Touch)
+    // ==========================================
+    let isProcessingLogic = false;
+    let isDragging = false;
+    let dragClone = null;
+    let originalChoiceEl = null;
+    let draggedChoiceNum = 0;
     
-    function checkAnswer(choiceNum) {
-        if(isProcessingClick) return;
-        isProcessingClick = true;
+    // ฟังก์ชันเริ่มลาก
+    function startDrag(element, x, y) {
+        if (isProcessingLogic) return;
+        isDragging = true;
+        originalChoiceEl = element;
+        draggedChoiceNum = parseInt(element.id.replace('c', ''));
         
-        const cursor = document.getElementById('ar-cursor');
-        const icon = document.getElementById('cursor-icon');
-        const choiceEl = document.getElementById('c' + choiceNum);
-        const cartEl = document.getElementById('cart-icon');
-
-        totalPoints += currentQPoints;
+        // สร้างการ์ดลอย (Clone)
+        dragClone = element.cloneNode(true);
+        let rect = element.getBoundingClientRect();
         
-        if(choiceNum == currentCorrectAns) {
-            // ตอบถูก
-            score += currentQPoints; 
-            document.getElementById('scoreDisplay').innerText = score;
-            
-            cursor.style.backgroundColor = '#10b981'; 
-            icon.innerText = '✔️'; 
-            playBeep('correct');
+        // เก็บระยะห่างจากมุมการ์ด เพื่อไม่ให้การ์ดกระตุกไปหาจุดกึ่งกลางเมาส์
+        dragClone.offsetX = x - rect.left;
+        dragClone.offsetY = y - rect.top;
+        
+        dragClone.style.position = 'fixed';
+        dragClone.style.left = (x - dragClone.offsetX) + 'px';
+        dragClone.style.top = (y - dragClone.offsetY) + 'px';
+        dragClone.style.width = rect.width + 'px';
+        dragClone.style.height = rect.height + 'px';
+        dragClone.style.margin = '0';
+        dragClone.style.zIndex = '9999';
+        dragClone.style.opacity = '0.9';
+        dragClone.style.pointerEvents = 'none'; // เพื่อให้ elementFromPoint ทะลุไปหาตะกร้าได้
+        dragClone.style.boxShadow = "0 10px 25px rgba(0,0,0,0.5)";
+        
+        document.body.appendChild(dragClone);
+        originalChoiceEl.style.opacity = '0.3'; // ทำให้ตัวต้นฉบับจางลง
+    }
 
-            // --- เอฟเฟกต์ 1: กรอบสีเขียว ---
-            choiceEl.style.boxShadow = "0 0 0 6px #4ade80"; // กรอบสีเขียวเรืองแสง
+    // ฟังก์ชันระหว่างลาก
+    function moveDrag(x, y) {
+        if (dragClone && isDragging) {
+            dragClone.style.left = (x - dragClone.offsetX) + 'px';
+            dragClone.style.top = (y - dragClone.offsetY) + 'px';
 
-            // --- เอฟเฟกต์ 2: ลอยเข้าตะกร้า ---
-            const rect = choiceEl.getBoundingClientRect();
-            const cartRect = cartEl.getBoundingClientRect();
-            
-            const flyingEl = choiceEl.cloneNode(true);
-            flyingEl.style.position = 'fixed';
-            flyingEl.style.left = rect.left + 'px';
-            flyingEl.style.top = rect.top + 'px';
-            flyingEl.style.width = rect.width + 'px';
-            flyingEl.style.height = rect.height + 'px';
-            flyingEl.style.margin = '0';
-            flyingEl.style.zIndex = '9999';
-            flyingEl.style.transition = 'all 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
-            document.body.appendChild(flyingEl);
-
-            // หน่วงเวลาเล็กน้อยเพื่อให้เบราว์เซอร์เรนเดอร์ก่อน แล้วค่อยลดขนาด+ย้ายตำแหน่ง
-            setTimeout(() => {
-                flyingEl.style.left = (cartRect.left + 10) + 'px';
-                flyingEl.style.top = (cartRect.top + 10) + 'px';
-                flyingEl.style.transform = 'scale(0.1)';
-                flyingEl.style.opacity = '0';
-                cartEl.style.transform = 'scale(1.3)'; // เด้งตะกร้าขยายขึ้น
-                cartEl.style.transition = 'transform 0.3s ease';
-            }, 50);
-
-            // รอแอนิเมชันจบแล้วลบออก
-            setTimeout(() => {
-                document.body.removeChild(flyingEl);
-                choiceEl.style.boxShadow = "none";
-                cartEl.style.transform = 'scale(1)'; // หดตะกร้ากลับขนาดเดิม
-                
-                cursor.style.backgroundColor = '#3b82f6'; icon.innerText = '';
-                remainingQuestions.shift(); // เอาข้อที่ตอบแล้วออกจากคิว
-                isProcessingClick = false; 
-                loadQuestion();
-            }, 650);
-
-        } else {
-            // ตอบผิด
-            cursor.style.backgroundColor = '#ef4444'; 
-            icon.innerText = '❌'; 
-            playBeep('wrong');
-            
-            // เอฟเฟกต์สั่นและกรอบแดง
-            choiceEl.style.boxShadow = "0 0 0 6px #ef4444";
-            choiceEl.classList.add('shake');
-
-            setTimeout(() => {
-                choiceEl.style.boxShadow = "none";
-                choiceEl.classList.remove('shake');
-                
-                cursor.style.backgroundColor = '#3b82f6'; icon.innerText = '';
-                remainingQuestions.shift(); // เอาข้อที่ตอบแล้วออกจากคิว (ถือว่าผิด ไม่ต้องวนมาทำใหม่)
-                isProcessingClick = false; 
-                loadQuestion();
-            }, 800);
+            // เช็คว่าลากมาโดนตะกร้าหรือไม่ เพื่อทำไฮไลต์ตะกร้า
+            let dropZone = document.getElementById('cart-drop-zone');
+            let dropRect = dropZone.getBoundingClientRect();
+            if (x >= dropRect.left && x <= dropRect.right && y >= dropRect.top && y <= dropRect.bottom) {
+                dropZone.classList.add('drop-zone-active');
+            } else {
+                dropZone.classList.remove('drop-zone-active');
+            }
         }
     }
 
-    async function endGame() {
-        clearInterval(timerInterval); switchScreen('screen-result');
-        document.getElementById('finalScore').innerText = `${score}/${totalPoints}`;
-        let percent = (totalPoints === 0) ? 0 : (score/totalPoints)*100;
-        let statusEl = document.getElementById('finalStatus');
+    // ฟังก์ชันเมื่อปล่อยนิ้ว
+    function dropDrag(x, y) {
+        if (!isDragging) return;
+        isDragging = false;
         
-        if(percent >= 50) { statusEl.innerText = "สอบผ่าน!"; statusEl.classList.add('text-green-400'); } 
-        else { statusEl.innerText = "ไม่ผ่านเกณฑ์"; statusEl.classList.add('text-red-400'); }
+        let dropZone = document.getElementById('cart-drop-zone');
+        dropZone.classList.remove('drop-zone-active');
+        let dropRect = dropZone.getBoundingClientRect();
         
-        const saveRes = await apiCall('saveScore', { name: studentNameStr, score: score, total: totalPoints });
-        if(saveRes.success) { document.getElementById('saveStatus').innerText = "บันทึกข้อมูลสำเร็จ"; document.getElementById('saveStatus').classList.add('text-green-300'); } 
-        else { document.getElementById('saveStatus').innerText = "เกิดข้อผิดพลาดในการบันทึก"; document.getElementById('saveStatus').classList.add('text-red-400'); }
+        // ตรวจสอบว่าจุดที่ปล่อย (x,y) อยู่ในกรอบตะกร้าสินค้าหรือไม่
+        if (x >= dropRect.left && x <= dropRect.right && y >= dropRect.top && y <= dropRect.bottom) {
+            // วางลงตะกร้าสำเร็จ ตรวจคำตอบ
+            handleAnswerDrop(draggedChoiceNum);
+        } else {
+            // วางผิดที่ ให้เด้งกลับไปที่เดิม
+            dragClone.style.transition = 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+            let rect = originalChoiceEl.getBoundingClientRect();
+            dragClone.style.left = rect.left + 'px';
+            dragClone.style.top = rect.top + 'px';
+            
+            setTimeout(() => {
+                if (dragClone) dragClone.remove();
+                originalChoiceEl.style.opacity = '1';
+                dragClone = null;
+            }, 300);
+        }
     }
 
-    // --- AR LOGIC ---
+    // ฟังก์ชันตรวจสอบคำตอบและ Smoothing Effect
+    function handleAnswerDrop(choiceNum) {
+        isProcessingLogic = true;
+        totalPoints += currentQPoints;
+        let cartEl = document.getElementById('cart-icon');
+        let qText = document.getElementById('questionText');
+        
+        // ซ่อนช้อยส์อื่นๆ เพื่อเข้าสู่ช่วง Smoothing
+        document.querySelectorAll('.choice-btn').forEach(btn => {
+            if(btn !== originalChoiceEl) btn.style.opacity = '0';
+        });
+
+        if (choiceNum == currentCorrectAns) {
+            // --- ตอบถูก ---
+            score += currentQPoints; 
+            document.getElementById('scoreDisplay').innerText = score;
+            playBeep('correct');
+            
+            dragClone.style.transition = 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)';
+            dragClone.style.boxShadow = "0 0 0 6px #4ade80"; // กรอบเขียว
+            
+            // แอนิเมชันลอยย่อส่วนเข้าตะกร้า
+            let cartRect = cartEl.getBoundingClientRect();
+            dragClone.style.left = (cartRect.left - 10) + 'px';
+            dragClone.style.top = (cartRect.top - 10) + 'px';
+            dragClone.style.transform = 'scale(0.1)';
+            dragClone.style.opacity = '0';
+            
+            cartEl.style.transform = 'scale(1.3)'; // ตะกร้าเด้งรับ
+            setTimeout(() => cartEl.style.transform = 'scale(1)', 400);
+            
+            // Text Smoothing
+            qText.innerText = "🎉 ยอดเยี่ยม! ถูกต้องครับ";
+            qText.style.color = "#4ade80";
+
+        } else {
+            // --- ตอบผิด ---
+            playBeep('wrong');
+            dragClone.style.transition = 'all 0.3s ease';
+            dragClone.style.boxShadow = "0 0 0 6px #ef4444"; // กรอบแดง
+            dragClone.classList.add('shake');
+            
+            // Text Smoothing
+            qText.innerText = "❌ ยังไม่ถูกนะ ข้อนี้ต้องข้ามไปก่อน";
+            qText.style.color = "#ef4444";
+            
+            // เด้งกลับที่เดิม
+            setTimeout(() => {
+                let rect = originalChoiceEl.getBoundingClientRect();
+                dragClone.style.left = rect.left + 'px';
+                dragClone.style.top = rect.top + 'px';
+                dragClone.classList.remove('shake');
+            }, 400);
+        }
+
+        // ดีเลย์หน่วงเวลา (Smoothing) ก่อนโหลดข้อถัดไป
+        setTimeout(() => {
+            if (dragClone) dragClone.remove();
+            originalChoiceEl.style.opacity = '1';
+            
+            remainingQuestions.shift(); // เอาข้อนี้ออกจากคิวหลัก
+            isProcessingLogic = false; 
+            loadQuestion(); // โหลดข้อถัดไป และแสดงช้อยส์กลับมา
+        }, 1800); // หน่วงเวลาให้ผู้เล่นดูผล 1.8 วินาที (Smoothing Time)
+    }
+
+    // --- เชื่อมต่อ Mouse & Touch ให้ใช้ Drag/Drop ได้ด้วย ---
+    let pointerIsDown = false;
+    document.addEventListener('pointerdown', (e) => {
+        let target = e.target.closest('.choice-btn');
+        if (target && !isDragging && !isProcessingLogic) {
+            pointerIsDown = true;
+            startDrag(target, e.clientX, e.clientY);
+        }
+    });
+    document.addEventListener('pointermove', (e) => {
+        if (pointerIsDown && isDragging) {
+            moveDrag(e.clientX, e.clientY);
+        }
+    });
+    document.addEventListener('pointerup', (e) => {
+        if (pointerIsDown && isDragging) {
+            pointerIsDown = false;
+            dropDrag(e.clientX, e.clientY);
+        }
+    });
+
+
+    // --- AR LOGIC (เชื่อมระบบจีบนิ้วลาก) ---
     const videoElement = document.getElementById('videoElement'), canvasElement = document.getElementById('canvasOverlay'), canvasCtx = canvasElement.getContext('2d');
     let isPinched = false;
 
@@ -405,16 +485,56 @@
                 cursorEl.style.left = `${cursorX}px`; cursorEl.style.top = `${cursorY}px`;
 
                 let pinchDist = Math.hypot((1 - thumbTip.x) - (1 - indexTip.x), thumbTip.y - indexTip.y);
-                if (pinchDist < 0.05 && !isPinched) {
-                    isPinched = true; let target = document.elementFromPoint(cursorX, cursorY);
-                    if (target && target.classList.contains('choice-btn')) target.click();
-                    else if (target && target.closest('button')) target.closest('button').click(); // เพื่อให้จีบนิ้วโดนปุ่มข้ามข้อได้ด้วย
-                } else if (pinchDist >= 0.06) { isPinched = false; }
+                
+                if (pinchDist < 0.05) {
+                    if (!isPinched) {
+                        isPinched = true;
+                        // จังหวะเพิ่งเริ่มจีบนิ้ว -> จับการ์ด
+                        if (!isDragging && !isProcessingLogic) {
+                            let target = document.elementFromPoint(cursorX, cursorY);
+                            if (target) {
+                                let choiceBtn = target.closest('.choice-btn');
+                                if (choiceBtn) {
+                                    startDrag(choiceBtn, cursorX, cursorY);
+                                    cursorEl.style.backgroundColor = '#10b981'; // เปลี่ยนสีเคอร์เซอร์ตอนหยิบ
+                                } else if (target.closest('button')) {
+                                    target.closest('button').click(); // สำหรับกดปุ่มข้ามข้อ
+                                }
+                            }
+                        }
+                    } else if (isDragging) {
+                        // จังหวะจีบนิ้วค้างไว้ -> ลากการ์ดตาม
+                        moveDrag(cursorX, cursorY);
+                    }
+                } else if (pinchDist >= 0.06) {
+                    if (isPinched) {
+                        isPinched = false;
+                        cursorEl.style.backgroundColor = '#3b82f6';
+                        // จังหวะปล่อยนิ้ว -> วางการ์ด
+                        if (isDragging) {
+                            dropDrag(cursorX, cursorY);
+                        }
+                    }
+                }
             }
         } else {
             if(!document.getElementById('screen-start').classList.contains('hide') === false && document.getElementById('screen-result').classList.contains('hide')) aiStatus.classList.remove('hide');
         }
         canvasCtx.restore();
+    }
+
+    async function endGame() {
+        clearInterval(timerInterval); switchScreen('screen-result');
+        document.getElementById('finalScore').innerText = `${score}/${totalPoints}`;
+        let percent = (totalPoints === 0) ? 0 : (score/totalPoints)*100;
+        let statusEl = document.getElementById('finalStatus');
+        
+        if(percent >= 50) { statusEl.innerText = "สอบผ่าน!"; statusEl.classList.add('text-green-400'); } 
+        else { statusEl.innerText = "ไม่ผ่านเกณฑ์"; statusEl.classList.add('text-red-400'); }
+        
+        const saveRes = await apiCall('saveScore', { name: studentNameStr, score: score, total: totalPoints });
+        if(saveRes.success) { document.getElementById('saveStatus').innerText = "บันทึกข้อมูลสำเร็จ"; document.getElementById('saveStatus').classList.add('text-green-300'); } 
+        else { document.getElementById('saveStatus').innerText = "เกิดข้อผิดพลาดในการบันทึก"; document.getElementById('saveStatus').classList.add('text-red-400'); }
     }
 
     // --- TEACHER LOGIC ---
